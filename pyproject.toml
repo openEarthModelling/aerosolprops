@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aeroprops"
+version = "0.1.0.dev0"
+description = "Structure-derived pure-component properties for atmospheric organic aerosol: vapour pressures and boiling points by group contribution"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Fan Zhang" }]
+keywords = [
+    "atmospheric chemistry",
+    "aerosol",
+    "SOA",
+    "vapour pressure",
+    "boiling point",
+    "group contribution",
+    "RDKit",
+    "thermo",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+    "thermo>=0.6.1",
+]
+
+[project.optional-dependencies]
+rdkit = ["rdkit>=2023.9"]
+test = ["pytest>=7.0", "rdkit>=2023.9"]
+docs = ["mkdocs>=1.5", "mkdocs-material>=9.0"]
+
+# [project.urls]
+# Homepage/Repository/Documentation URLs are added once the public
+# repository goes live.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules -q"
+testpaths = ["src", "tests"]
+markers = [
+    "rdkit: tests that require RDKit (deselect with -m 'not rdkit')",
+]

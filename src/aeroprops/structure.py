@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: MIT
+"""Structure input layer: RDKit loading, normalisation, and composition.
+
+This module is the only place that touches RDKit. It follows the ``thermo``
+convention that RDKit is an optional dependency: imports are attempted once
+and cached, and every public function degrades gracefully (returns ``None``)
+when RDKit is missing. All property estimators in aeroprops ultimately
+consume group-count dictionaries, so the library remains fully usable
+without RDKit.
+"""
+
+_rdkit_modules = None
+_rdkit_loaded = False
+_normalizer = None
+
+
+def load_rdkit():
+    """Load the RDKit modules used by aeroprops.
+
+    Returns
+    -------
+    modules : tuple or None
+        ``(Chem, Descriptors)`` if RDKit is importable, otherwise ``None``.
+        The import is attempted once per process and cached.
+
+    Examples
+    --------
+    >>> load_rdkit() is not None
+    True
+    """
+    global _rdkit_modules, _rdkit_loaded
+    if not _rdkit_loaded:
+        _rdkit_loaded = True
+        try:
+            from rdkit import Chem as _Chem
+            from rdkit.Chem import Descriptors as _Descriptors
+        except ImportError:
+            _rdkit_modules = None
+        else:
+            _rdkit_modules = (_Chem, _Descriptors)
+    return _rdkit_modules
+
+
+def _normalizer_transform():
+    """Return (and cache) an RDKit MolStandardize ``Normalizer`` instance."""
+    global _normalizer
+    if _normalizer is None:
+        from rdkit.Chem.MolStandardize import rdMolStandardize
+
+        _normalizer = rdMolStandardize.Normalizer()
+    return _normalizer
+
+
+def mol_from_smiles(smi):
+    """Parse a SMILES string into a normalised RDKit molecule.
+
+    Every structure entering aeroprops passes through RDKit's
+    ``Normalizer`` charge-correction transform. This matters for nitrate,
+    nitro, and peroxyacyl nitrate (PAN) groups: RDKit renders them in the
+    charge-separated form (e.g. ``C[N+](=O)[O-]``), and the SMARTS
+    catalogues in aeroprops are written against that form.
+
+    Parameters
+    ----------
+    smi : str
+        SMILES string; the valence (neutral) form need not be normalised
+        on input.
+
+    Returns
+    -------
+    mol : Mol or None
+        Normalised molecule, or ``None`` if RDKit is unavailable or the
+        SMILES cannot be parsed.
+
+    Examples
+    --------
+    >>> mol = mol_from_smiles("CCO")
+    >>> mol.GetNumAtoms()
+    3
+    >>> mol_from_smiles("not a smiles") is None
+    True
+    """
+    loaded = load_rdkit()
+    if loaded is None:
+        return None
+    Chem = loaded[0]
+    mol = Chem.MolFromSmiles(smi)
+    if mol is None:
+        return None
+    return _normalizer_transform().normalize(mol)
+
+
+def canonical_smiles(smi):
+    """Return the canonical SMILES of the normalised molecule for `smi`.
+
+    The two valence writings of a nitrate/nitro group map to the same
+    canonical (charge-separated) form:
+
+    Examples
+    --------
+    >>> canonical_smiles("CN(=O)=O") == canonical_smiles("C[N+](=O)[O-]")
+    True
+    """
+    loaded = load_rdkit()
+    mol = mol_from_smiles(smi)
+    if mol is None or loaded is None:
+        return None
+    return loaded[0].MolToSmiles(mol)
+
+
+def element_counts(mol):
+    """Count atoms of each element, including implicit hydrogens.
+
+    Parameters
+    ----------
+    mol : Mol
+        Molecule as produced by :func:`mol_from_smiles`.
+
+    Returns
+    -------
+    counts : dict or None
+        Mapping of element symbol to atom count (hydrogens included via
+        implicit-H bookkeeping), or ``None`` if `mol` is ``None``.
+
+    Examples
+    --------
+    >>> element_counts(mol_from_smiles("CCO"))
+    {'C': 2, 'H': 6, 'O': 1}
+    """
+    if mol is None:
+        return None
+    counts = {}
+    for atom in mol.GetAtoms():
+        symbol = atom.GetSymbol()
+        counts[symbol] = counts.get(symbol, 0) + 1
+        num_h = atom.GetTotalNumHs()
+        if num_h:
+            counts["H"] = counts.get("H", 0) + num_h
+    return counts
+
+
+def molecular_weight(mol):
+    """Return the average molecular weight of `mol` in kg/mol.
+
+    Uses RDKit's average-atomic-mass molecular weight (the same convention
+    as ``thermo``).
+
+    Parameters
+    ----------
+    mol : Mol
+        Molecule as produced by :func:`mol_from_smiles`.
+
+    Returns
+    -------
+    mw : float or None
+        Average molecular weight [kg/mol], or ``None`` if `mol` is
+        ``None``.
+
+    Examples
+    --------
+    >>> round(molecular_weight(mol_from_smiles("CCO")), 5)
+    0.04607
+    """
+    loaded = load_rdkit()
+    if mol is None or loaded is None:
+        return None
+    return loaded[1].MolWt(mol) / 1000.0

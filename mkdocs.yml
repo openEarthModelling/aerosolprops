@@ -1,0 +1,20 @@
+site_name: aeroprops
+site_description: Structure-derived pure-component properties for atmospheric organic aerosol
+# repo_url is added when the public repository goes live
+theme:
+  name: material
+  features:
+    - navigation.sections
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+nav:
+  - index.md
+  - Methods:
+      - SIMPOL.1: methods/simpol1.md
+      - EVAPORATION: methods/evaporation.md
+      - Nannoolal (Part 1 + Part 3): methods/nannoolal.md
+      - Myrdal–Yalkowsky: methods/myrdal_yalkowsky.md
+  - LICENSE: license.md
+strict: true
