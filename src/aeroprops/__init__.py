@@ -19,7 +19,7 @@ Method coverage for v0.1:
   6271, 2010) — implemented (see
   :class:`aeroprops.boiling_point.NannoolalBP`)
 - Nannoolal Part 3 vapour pressure (Nannoolal et al., FPE 269, 117, 2008) —
-  planned
+  implemented (see :class:`aeroprops.vapour_pressure.NannoolalVP`)
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
   1997) with the hydrogen-bonding extension of Compernolle et al. (2010) —
   implemented (see :class:`aeroprops.vapour_pressure.MyrdalYalkowsky`)
