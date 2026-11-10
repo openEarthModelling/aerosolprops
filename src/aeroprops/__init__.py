@@ -13,7 +13,7 @@ Method coverage for v0.1:
 - SIMPOL.1 vapour pressure (Pankow & Asher, ACP 8, 2773, 2008) —
   implemented (see :class:`aeroprops.vapour_pressure.SIMPOL1`)
 - EVAPORATION vapour pressure (Compernolle et al., ACP 11, 9431, 2011) —
-  planned
+  implemented (see :class:`aeroprops.vapour_pressure.EVAPORATION`)
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004), including the SOA extension groups of Compernolle et al. (ACP 10,
   6271, 2010) — implemented (see
