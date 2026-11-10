@@ -115,3 +115,94 @@ def test_every_catalogued_smarts_group_has_a_priority():
     assert 109 not in NANNOOLAL_BP_SMARTS  # unimplementable, see docs
 
 
+# --- Gate 2: paper Tables 17a-17d worked examples ---------------------
+WORKED_EXAMPLES = [
+    # (name, SMILES, expected counts, n, paper-calculated Tb [K])
+    ("17a 3,3,4,4-tetramethylhexane", "CCC(C)(C)C(C)(C)CC",
+     {1: 6, 4: 2, 6: 2, 133: 1}, 10, 429.5),
+    ("17b di-isopropanolamine", "CC(O)CNCC(O)C",
+     {1: 2, 7: 4, 34: 2, 42: 1}, 9, 509.3),
+    ("17c perfluoro-2-propanone", "FC(F)(F)C(=O)C(F)(F)F",
+     {7: 2, 21: 6, 51: 1, 120: 1, 121: 2, 123: 1}, 10, 246.3),
+    # 17d: the arithmetic gives 490.65 -> 490.7; the paper prints
+    # 490.6 (display truncation of the same group sum 2655.112).
+    ("17d methyl m-toluate", "COC(=O)c1cccc(C)c1",
+     {2: 1, 3: 1, 15: 4, 16: 2, 45: 1, 118: 1, 128: 1}, 11, 490.7),
+]
+
+
+@pytest.mark.parametrize(
+    "name,smi,expected,n,tb_expected", WORKED_EXAMPLES)
+def test_worked_examples_end_to_end(name, smi, expected, n, tb_expected):
+    nnp = NannoolalBP(smi=smi)
+    assert (nnp.success, nnp.status, nnp.n) == (True, "OK", n)
+    assert nnp.counts == expected
+    assert nnp.boiling_point() == pytest.approx(tb_expected, abs=0.06)
+
+
+# --- Gate 3: literature values ----------------------------------------
+LITERATURE = [
+    # (name, SMILES, experimental Tb [K], source)
+    ("furfural", "O=Cc1ccoc1", 434.7, "CRC Handbook, 97th ed."),
+    ("anisole", "COc1ccccc1", 426.9, "CRC Handbook, 97th ed."),
+    ("morpholine", "C1COCCN1", 401.8, "CRC Handbook, 97th ed."),
+    ("acetophenone", "CC(=O)c1ccccc1", 475.6, "CRC Handbook, 97th ed."),
+    ("quinoline", "n1cccc2ccccc12", 511.2, "CRC Handbook, 97th ed."),
+]
+
+
+@pytest.mark.parametrize("name,smi,exp,_src", LITERATURE)
+def test_literature_boiling_points(name, smi, exp, _src):
+    # The paper reports the method as a regression with a few-K spread;
+    # these five sit within 1.2 K of experiment (they also pin the
+    # o/m/p, ring and conjugation machinery to real numbers).
+    assert NannoolalBP(smi=smi).boiling_point() == pytest.approx(
+        exp, abs=1.5
+    )
+
+
+# --- Gate 4: atom balance over a broad battery ------------------------
+BATTERY = [
+    "CC", "CCC", "CCCC", "CCCCCCCCCC", "CC(C)C", "CC(C)(C)C",
+    "C1CCCCC1", "C1CCCCCC1", "C1CC1", "C1CCC1",
+    "C=CC", "C=CCC", "CC=CC", "C=CC=C", "C=C(C)C=C", "C#CC", "CC#CC",
+    "C=C=C", "C1=CCCCC1", "c1ccccc1", "Cc1ccccc1", "CCc1ccccc1",
+    "CC(C)c1ccccc1", "CC(C)(C)c1ccccc1", "c1ccc(-c2ccccc2)cc1",
+    "c1ccc2ccccc2c1", "Cc1ccccc1C", "Cc1cccc(C)c1", "Cc1ccc(C)cc1",
+    "c1ccc2[nH]ccc2c1", "n1ccccc1", "n1cccc2ccccc12", "c1cc[nH]c1",
+    "c1ncc[nH]1", "Cn1ccnc1", "c1ccsc1", "c1nccs1", "c1ccoc1",
+    "CC(=O)Oc1ccccc1C(=O)O",  # aspirin: ortho pair + ester + acid + ether
+    "OCC", "CCO", "CCCO", "CCCCO", "CCCCCO", "CC(C)(C)O", "OCCO",
+    "OCC(O)CO", "Oc1ccccc1", "CCOc1ccccc1", "OC(=O)c1ccccc1",
+    "CCOC(C)=O", "O=C1OCCC1", "CC(=O)OC(C)=O", "O=C1OC(=O)C=C1",
+    "CC(=O)C", "CCC(=O)C", "O=Cc1ccccc1", "CC(=O)c1ccccc1",
+    "O=C(c1ccccc1)c1ccccc1", "CCOCC", "C1COCCO1", "C1COC1", "C1C(O1)CCl",
+    "CN(C)C=O", "CC(N)=O", "CN1CCCC1=O", "NC(=O)N", "COC(=O)NC",
+    "COC(=O)OC", "C1COC(=O)O1", "Nc1ccccc1", "CCN(CC)CC", "C1COCCN1",
+    "C[N+](C)(C)C", "CC#N", "N#Cc1ccccc1", "C[N+](=O)[O-]",
+    "O=[N+]([O-])c1ccccc1", "CCO[N+](=O)[O-]", "CON=O", "CC(=NO)C",
+    "CN=C=O", "CSCC", "CSSCC", "CS(C)=O", "CS(C)(=O)=O", "C1CS(=O)(=O)CC1",
+    "ClCCl", "ClC(Cl)Cl", "ClC(Cl)(Cl)Cl", "ClCCCl", "C=CCl",
+    "ClCc1ccccc1", "Clc1ccccc1", "FC(F)(F)C(F)(F)F", "FC(F)(F)Cl",
+    "FC(F)=CF", "CC(C)(C)OO", "CC(C)(C)OOCC(C)(C)", "CC(=O)OO",
+    "CC(=O)OON(=O)=O", "CCCC(=O)OON(=O)=O",
+]
+
+
+def test_battery_fragments_with_full_atom_balance():
+    assert len(BATTERY) >= 50
+    engine = _nannoolal_engine()
+    for smi in BATTERY:
+        mol = mol_from_smiles(smi)
+        counts, n, ok, status = nannoolal_fragmentation(mol)
+        assert ok, "%s: %s" % (smi, status)
+        assert counts and n == mol.GetNumAtoms()
+        # The engine's exclusive claim set must cover exactly n atoms.
+        _c, assignments, _ok, _s = engine.fragment(mol)
+        claimed = sum(
+            len(claim) for insts in assignments.values() for claim in insts
+        )
+        assert claimed == n
+        assert NannoolalBP(mol=mol).boiling_point() is not None
+
+
