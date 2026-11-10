@@ -3,8 +3,9 @@
 
 This module owns everything that needs RDKit: molecule construction,
 SMARTS matching, and graph algorithms. The coefficient catalogues and
-the pure estimators live in :mod:`aeroprops.methods.simpol1`; the
-graph primitives live in :mod:`aeroprops.topology`.
+the pure estimators live in :mod:`aeroprops.methods.simpol1` and
+:mod:`aeroprops.methods.myrdal_yalkowsky`; the graph primitives live
+in :mod:`aeroprops.topology`.
 
 Why not ``thermo.group_contribution``? thermo's fragmentation
 machinery (``smarts_fragment_priority`` / ``BaseGroupContribution``)
@@ -46,6 +47,8 @@ False
 ({}, True)
 """
 
+import warnings
+
 from .methods.simpol1 import (
     SIMPOL1_GROUPS,
     SIMPOL1_SMARTS,
@@ -55,6 +58,7 @@ from .methods.simpol1 import (
 )
 from .methods.myrdal_yalkowsky import (
     myrdal_yalkowsky_hbn,
+    myrdal_yalkowsky_log10_vapour_pressure,
     myrdal_yalkowsky_tau,
 )
 from .structure import (
@@ -584,3 +588,196 @@ def myrdal_yalkowsky_descriptors(mol):
         hbond_root=hbond_root, hbn=hbn, mw=mw, **counts
     )
     return descriptors, True, "OK"
+
+
+def _my_joback_boiling_point(smi):
+    """Normal boiling point [K] from ``thermo``'s Joback method, or None.
+
+    thermo is imported lazily (the Joback route is its only consumer in
+    aeroprops; the class is re-exported at the package top level in
+    thermo 0.6.1). ``Joback.Tb_estimated`` holds a number even when the
+    SMARTS fragmentation failed, so the route gates on ``success``.
+    """
+    try:
+        from thermo import Joback
+    except ImportError:
+        return None
+    try:
+        joback = Joback(smi)
+    except Exception:
+        return None
+    if not getattr(joback, "success", False):
+        return None
+    tb = getattr(joback, "Tb_estimated", None)
+    try:
+        return tb if tb > 0.0 else None
+    except TypeError:
+        return None
+
+
+class MyrdalYalkowsky:
+    """Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36,
+    2494, 1997), with the hydrogen-bond extension of Compernolle et al.
+    (ACP 10, 6271, 2010).
+
+    An *input* method: paper Eq. 12 needs the normal boiling point
+    ``Tb`` and, for the solid branch, the melting point ``Tm``.
+    ``Tb`` is routed from Nannoolal Part 1
+    (:class:`aeroprops.boiling_point.NannoolalBP`, the default),
+    ``thermo``'s built-in Joback method, or experimental data —
+    aeroprops does not reimplement Joback. With ``Tm`` unset the
+    estimate is the sub-cooled liquid vapour pressure (the paper's own
+    convention for its Table 1 liquid rows), annotated in ``status``.
+
+    Parameters
+    ----------
+    mol : Mol, optional
+        Normalisation is applied internally; pass any parsed RDKit
+        molecule.
+    smi : str, optional
+        SMILES string, used when `mol` is not given.
+    tb : float, optional
+        Experimental normal boiling point [K]; overrides `tb_source`
+        (recorded as ``"experimental"``).
+    tb_source : str, optional
+        Where an absent ``tb`` comes from: ``"nannoolal"`` (default),
+        ``"joback"`` or ``"experimental"``.
+    tm : float, optional
+        Melting point [K]; ``None`` (default) selects the sub-cooled
+        liquid branch.
+    sigma : float, optional
+        External rotational symmetry number (>= 1, default 1); enters
+        only the solid branch.
+
+    Attributes
+    ----------
+    descriptors : dict
+        The output of :func:`myrdal_yalkowsky_descriptors` (empty on
+        failure).
+    tb, tb_source, tm, sigma
+        The resolved inputs (``tb`` ``None`` if its route failed).
+    success : bool
+    status : str
+        ``"OK"`` on success, or ``"OK (sub-cooled liquid: Tm not
+        supplied)"``; otherwise the failure reason.
+
+    Examples
+    --------
+    Paper Table 1 anchor - resorcinol, Tb 549 K, T 425 K, predicted
+    -1.76 log10 atm:
+
+    >>> my = MyrdalYalkowsky(smi="Oc1cccc(O)c1", tb=549.0)
+    >>> my.success, my.tb_source
+    (True, 'experimental')
+    >>> round(my.log10_vapour_pressure(425.0), 2)
+    3.24
+    >>> my.status
+    'OK (sub-cooled liquid: Tm not supplied)'
+
+    The solid branch (biphenyl, Tm 342.4 K, sigma 2, Table 1 -2.97):
+
+    >>> my = MyrdalYalkowsky(smi="c1ccccc1c1ccccc1", tb=528.0, tm=342.4,
+    ...                      sigma=2)
+    >>> round(my.log10_vapour_pressure(342.0), 2)
+    2.04
+    """
+
+    def __init__(self, mol=None, smi=None, tb=None, tb_source="nannoolal",
+                 tm=None, sigma=1.0):
+        if mol is None:
+            mol = None if smi is None else mol_from_smiles(smi)
+        else:
+            mol = normalize_mol(mol)
+        if mol is None:
+            self.mol = None
+            self.descriptors, self.success, self.status = (
+                {}, False, "Failed to construct mol"
+            )
+            self.tb = None
+            return
+        self.mol = mol
+        self.descriptors, self.success, self.status = (
+            myrdal_yalkowsky_descriptors(mol)
+        )
+        self.tb = float(tb) if tb is not None and tb > 0.0 else None
+        if tb is not None and self.tb is None:
+            self.success, self.status = False, "invalid experimental Tb"
+            return
+        self.tb_source = "experimental" if tb is not None else tb_source
+        self.tm = tm
+        self.sigma = sigma
+        if not self.success:
+            return
+        if tm is not None and not tm > 0.0:
+            self.success, self.status = False, "invalid Tm"
+            return
+        if not sigma >= 1.0:
+            self.success, self.status = False, "invalid sigma (< 1)"
+            return
+        if self.tb is None:
+            self.tb = self._resolve_tb(smi)
+            if self.tb is None:
+                self.success = False
+                return
+        if self.tm is None:
+            self.status = "OK (sub-cooled liquid: Tm not supplied)"
+
+    def _resolve_tb(self, smi):
+        """Fill ``self.tb`` from the selected route; sets the failure
+        status and returns ``None`` when the route refuses."""
+        if self.tb_source == "experimental":
+            self.status = "experimental Tb required: pass tb=..."
+            return None
+        if self.tb_source == "joback":
+            if smi is None:
+                loaded = load_rdkit()
+                smi = loaded[0].MolToSmiles(self.mol)
+            tb = _my_joback_boiling_point(smi)
+            if tb is None:
+                self.status = "Joback Tb unavailable (thermo refused)"
+            return tb
+        if self.tb_source == "nannoolal":
+            from .boiling_point import NannoolalBP
+
+            nnp = NannoolalBP(mol=self.mol)
+            tb = nnp.boiling_point()
+            if tb is None:
+                self.status = "Nannoolal Tb refused: " + nnp.status
+            return tb
+        self.status = "unknown tb_source: %r" % (self.tb_source,)
+        return None
+
+    def log10_vapour_pressure(self, T=298.15):
+        """Base-10 logarithm of the vapour pressure [log10 Pa].
+
+        Emits a warning above the normal boiling point, where Eq. 12
+        extrapolates outside its fitted range.
+
+        >>> my = MyrdalYalkowsky(smi="CC(C)CC(C)(C)CC", tb=404.0)
+        >>> round(my.log10_vapour_pressure(323.0), 2)  # Table 1: -1.28 atm
+        3.72
+        """
+        if not self.success:
+            return None
+        if not T > 0.0:
+            return None
+        if T > self.tb:
+            warnings.warn(
+                "T = %.1f K exceeds Tb = %.1f K: Eq. 12 extrapolates "
+                "beyond the normal boiling point" % (T, self.tb),
+                stacklevel=2,
+            )
+        d = self.descriptors
+        return myrdal_yalkowsky_log10_vapour_pressure(
+            T, self.tb, d["tau"], d["hbn"], Tm=self.tm, sigma=self.sigma
+        )
+
+    def vapour_pressure(self, T=298.15):
+        """Vapour pressure [Pa].
+
+        >>> my = MyrdalYalkowsky(smi="Oc1cccc(O)c1", tb=549.0)
+        >>> round(my.vapour_pressure(425.0), 1)
+        1756.9
+        """
+        log10p = self.log10_vapour_pressure(T)
+        return None if log10p is None else 10.0 ** log10p
