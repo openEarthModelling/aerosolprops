@@ -53,10 +53,24 @@ from .methods.simpol1 import (
     simpol1_log10_vapour_pressure,
     simpol1_vapourisation_enthalpy,
 )
-from .structure import load_rdkit, mol_from_smiles, normalize_mol
+from .methods.myrdal_yalkowsky import (
+    myrdal_yalkowsky_hbn,
+    myrdal_yalkowsky_tau,
+)
+from .structure import (
+    load_rdkit,
+    mol_from_smiles,
+    molecular_weight,
+    normalize_mol,
+)
 from .topology import fragments_excluding_bond
 
-__all__ = ["SIMPOL1", "simpol1_fragmentation"]
+__all__ = [
+    "SIMPOL1",
+    "MyrdalYalkowsky",
+    "myrdal_yalkowsky_descriptors",
+    "simpol1_fragmentation",
+]
 
 #: Elements covered by the SIMPOL.1 group catalogue (paper Table 5:
 #: hydrocarbons plus O/N functionality only).
@@ -355,3 +369,218 @@ class SIMPOL1:
         if not self.success:
             return None
         return simpol1_vapourisation_enthalpy(self.counts, T)
+
+
+# =========================================================================
+# Myrdal-Yalkowsky (Myrdal & Yalkowsky, IECR 36, 2494, 1997)
+# =========================================================================
+
+#: Elements in the method's domain: the paper's training/test compounds
+#: are CHNO organics plus halogenated and sulfur species (Table 1 has a
+#: thiol and a chloroalkane); anything else fails cleanly.
+MYRDAL_YALKOWSKY_ELEMENTS = frozenset(
+    ("C", "H", "N", "O", "S", "F", "Cl", "Br", "I")
+)
+
+#: Hydrogen-bond group SMARTS, authored clean-room from the word
+#: definitions of paper Eq. 9 ("the number of alcohols, carboxylic
+#: acids, or primary amines") plus the published extension of
+#: Compernolle et al. (ACP 10, 6271, 2010, section 2.6: hydroperoxides
+#: and peracids join the alcohol/acid root). Key = descriptor key.
+#: ``hydroperoxide`` excludes the peracid carbon so the two patterns
+#: never double-count; ``carboxyl`` excludes the O-O-bonded acid
+#: hydroxyl; ``primary_amine`` excludes amide nitrogens.
+MYRDAL_YALKOWSKY_HBOND_SMARTS = {
+    "hydroxyl": "[OX2H;$([OX2H]-[c]),$([OX2H]-[CX4])]",
+    "carboxyl": "[CX3](=[OX1])-[OX2H;!$([OX2H]-[OX2])]",
+    "hydroperoxide": "[#6;!$([CX3]=[OX1])]-[OX2]-[OX2H]",
+    "peracid": "[CX3](=[OX1])-[OX2]-[OX2H]",
+    "primary_amine": "[NX3;H2;!$([NX3]-[CX3]=[OX1])]",
+}
+
+#: Functional groups outside the published parameterisation that this
+#: module refuses rather than silently mis-estimating (the adjudicated
+#: scope ruling): UManSysProp extrapolates nitrates/PAN into the
+#: flexibility and hydrogen-bond counts with no published basis, and
+#: its enol handling likewise; aeroprops reports the molecule as
+#: unsupported so the caller falls through to SIMPOL.1/EVAPORATION,
+#: whose parameterisations cover these groups.
+MYRDAL_YALKOWSKY_REFUSED_SMARTS = {
+    "organic nitrate": "[#6]-[OX2]-[N+](=[OX1])[O-]",
+    "peroxy acyl nitrate": "[CX3](=[OX1])-[OX2]-[OX2]-[N+](=[OX1])[O-]",
+    "enol": "[OX2H]-[CX3]=[CX3]",
+}
+
+_my_pattern_cache = None
+
+
+def _my_compiled_patterns():
+    """Compile (once) the Myrdal-Yalkowsky SMARTS catalogues."""
+    global _my_pattern_cache
+    if _my_pattern_cache is None:
+        loaded = load_rdkit()
+        if loaded is None:
+            return None
+        compiled = {}
+        for catalogue in (
+            MYRDAL_YALKOWSKY_HBOND_SMARTS,
+            MYRDAL_YALKOWSKY_REFUSED_SMARTS,
+        ):
+            for key, smarts in catalogue.items():
+                pattern = loaded[0].MolFromSmarts(smarts)
+                if pattern is None:
+                    raise ValueError(
+                        "Myrdal-Yalkowsky SMARTS %r does not parse: %r"
+                        % (key, smarts)
+                    )
+                compiled[key] = pattern
+        _my_pattern_cache = compiled
+    return _my_pattern_cache
+
+
+def myrdal_yalkowsky_descriptors(mol):
+    """Compute the Myrdal-Yalkowsky descriptors of a normalised molecule.
+
+    Implements the paper's word definitions for Eq. 8 and Eq. 9 as the
+    conventions locked against paper Table 1 (all 19 rows reproduce at
+    the printed two decimals):
+
+    * **SP3** - nonring, nonterminal sp3 atoms among C/N/O/S (paper:
+      "CH2 and CH and also includes NH, N, O, and S"), where
+      *nonterminal* means heavy-atom degree >= 2 and *tert-butyl
+      centres* (a carbon with three terminal-carbon neighbours) are
+      excluded ("tert-butyl groups do not contribute to flexibility");
+      atoms with a triple bond are skipped ("triple bonds ... are not
+      counted");
+    * **SP2** - nonring sp2 *carbons* with heavy-atom degree >= 2 (the
+      "-C=" of the paper; valeric acid and methyl salicylate lock the
+      carbonyl carbon at the half weight);
+    * **RING** - the number of *independent ring systems*: connected
+      components of the ring atoms joined by ring bonds (naphthalene
+      and anthracene are one system each, biphenyl two - deliberately
+      not the SSSR ring count, see the tests);
+    * **tau** - :func:`aeroprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_tau`;
+    * **HBN groups** - :data:`MYRDAL_YALKOWSKY_HBOND_SMARTS` counts,
+      combined by :func:`aeroprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_hbn`
+      with the all-element molecular weight.
+
+    Parameters
+    ----------
+    mol : Mol
+        Normalised RDKit molecule (see
+        :func:`aeroprops.structure.mol_from_smiles`).
+
+    Returns
+    -------
+    descriptors : dict
+        Keys ``sp3``, ``sp2``, ``ring_systems``, ``tau``, the five
+        hydrogen-bond group counts (``hydroxyl``, ``carboxyl``,
+        ``hydroperoxide``, ``peracid``, ``primary_amine``),
+        ``hbond_root`` (the first-root sum), ``hbn`` and ``mw`` [g/mol];
+        empty on failure.
+    success : bool
+    status : str
+
+    Examples
+    --------
+    Paper Table 1 anchors: 3,5-diethylphenol (Appendix A tau = 1.5),
+    2,4,4-trimethylhexane (tert-butyl centre excluded, SP3 = 4,
+    tau = 3) and 1-hexanethiol (terminal -SH not counted, tau = 4):
+
+    >>> d, ok, status = myrdal_yalkowsky_descriptors(
+    ...     mol_from_smiles("CCc1cc(O)cc(CC)c1"))
+    >>> (d["sp3"], d["ring_systems"], d["tau"], d["hydroxyl"])
+    (2, 1, 1.5, 1)
+    >>> d, _, _ = myrdal_yalkowsky_descriptors(
+    ...     mol_from_smiles("CC(C)CC(C)(C)CC"))
+    >>> (d["sp3"], d["tau"])
+    (4, 3.0)
+    >>> d, _, _ = myrdal_yalkowsky_descriptors(mol_from_smiles("CCCCCCS"))
+    >>> (d["sp3"], d["tau"])
+    (5, 4.0)
+
+    The Compernolle (2010) extension and the ring-system convention:
+
+    >>> d, _, _ = myrdal_yalkowsky_descriptors(mol_from_smiles("CC(=O)OO"))
+    >>> (d["peracid"], d["hydroperoxide"], d["carboxyl"])
+    (1, 0, 0)
+    >>> d, _, _ = myrdal_yalkowsky_descriptors(
+    ...     mol_from_smiles("c1ccc2cc3ccccc3cc2c1"))
+    >>> d["ring_systems"]  # anthracene: one system (SSSR would say 3)
+    1
+
+    Outside the published parameterisation the molecule is refused:
+
+    >>> myrdal_yalkowsky_descriptors(mol_from_smiles("CCO[N+](=O)[O-]"))[1:]
+    (False, 'unsupported functional group: organic nitrate')
+    """
+    loaded = load_rdkit()
+    patterns = _my_compiled_patterns()
+    if mol is None or patterns is None:
+        return {}, False, "Failed to construct mol"
+    Chem = loaded[0]
+    unsupported = sorted(
+        {a.GetSymbol() for a in mol.GetAtoms()} - MYRDAL_YALKOWSKY_ELEMENTS
+    )
+    if unsupported:
+        return {}, False, "unsupported element(s): " + ", ".join(unsupported)
+    for key in MYRDAL_YALKOWSKY_REFUSED_SMARTS:
+        if mol.GetSubstructMatches(patterns[key], uniquify=True):
+            return {}, False, "unsupported functional group: " + key
+
+    # --- SP3 / SP2 walk (paper Eq. 8 word definitions) ----------------
+    ring_info = mol.GetRingInfo()
+    sp3 = sp2 = 0
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() not in ("C", "N", "O", "S"):
+            continue  # halogens are terminal in this method's domain
+        if atom.GetIsAromatic() or ring_info.NumAtomRings(atom.GetIdx()):
+            continue  # "nonring"
+        heavy = [nb for nb in atom.GetNeighbors() if nb.GetSymbol() != "H"]
+        types = {bond.GetBondTypeAsDouble() for bond in atom.GetBonds()}
+        if 3.0 in types:
+            continue  # "triple bonds ... are not counted"
+        if 2.0 in types:
+            if atom.GetSymbol() == "C" and len(heavy) >= 2:
+                sp2 += 1
+            continue
+        if len(heavy) < 2:
+            continue  # nonterminal
+        if atom.GetSymbol() == "C":
+            n_methyl = sum(
+                1
+                for nb in heavy
+                if nb.GetSymbol() == "C"
+                and len(
+                    [x for x in nb.GetNeighbors() if x.GetSymbol() != "H"]
+                ) == 1
+            )
+            if n_methyl >= 3:
+                continue  # tert-butyl centre
+        sp3 += 1
+
+    # --- ring systems: ring atoms joined by ring bonds ----------------
+    rw = Chem.RWMol(mol)
+    for bond in mol.GetBonds():
+        if not bond.IsInRing():
+            rw.RemoveBond(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
+    ring_systems = sum(
+        1 for frag in Chem.GetMolFrags(rw) if len(frag) >= 3
+    )
+
+    # --- hydrogen-bond groups (paper Eq. 9 + Compernolle extension) ---
+    counts = {}
+    for key in MYRDAL_YALKOWSKY_HBOND_SMARTS:
+        counts[key] = len(mol.GetSubstructMatches(patterns[key], uniquify=True))
+    hbond_root = (
+        counts["hydroxyl"] + counts["carboxyl"]
+        + counts["hydroperoxide"] + counts["peracid"]
+    )
+    mw = None if mol is None else molecular_weight(mol) * 1000.0  # g/mol
+    tau = myrdal_yalkowsky_tau(sp3, sp2, ring_systems)
+    hbn = myrdal_yalkowsky_hbn(hbond_root, counts["primary_amine"], mw)
+    descriptors = dict(
+        sp3=sp3, sp2=sp2, ring_systems=ring_systems, tau=tau,
+        hbond_root=hbond_root, hbn=hbn, mw=mw, **counts
+    )
+    return descriptors, True, "OK"
