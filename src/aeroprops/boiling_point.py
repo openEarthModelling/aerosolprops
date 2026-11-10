@@ -244,3 +244,211 @@ def _nannoolal_engine():
     return _ENGINE
 
 
+#: Carbonyl groups whose acyl neighbours decide corrections 118-120.
+_HO_CONJUGATION_GIDS = (44, 45, 46, 47, 51, 52, 90, 92)
+_HALO_CONJUGATION_GIDS = (44, 45, 46, 47, 48, 49, 50, 51, 52, 77, 90, 92)
+
+
+def _carbonyl_carbon(mol, claim):
+    """Index of the C=O carbon inside a carbonyl group's claim tuple."""
+    for idx in claim:
+        atom = mol.GetAtomWithIdx(idx)
+        if atom.GetSymbol() != "C":
+            continue
+        for bond in atom.GetBonds():
+            other = bond.GetOtherAtom(atom)
+            if other.GetSymbol() == "O" and bond.GetBondTypeAsDouble() == 2.0:
+                return idx
+    return None
+
+
+def _halogen_count(atom):
+    """Number of directly bonded fluorine/chlorine atoms."""
+    return sum(
+        1 for nb in atom.GetNeighbors() if nb.GetSymbol() in ("F", "Cl")
+    )
+
+
+def _carbon_neighbours(atom):
+    return [nb for nb in atom.GetNeighbors() if nb.GetSymbol() == "C"]
+
+
+def _is_sp3(atom):
+    """True when every bond of `atom` is a single non-aromatic bond."""
+    return not atom.GetIsAromatic() and all(
+        bond.GetBondTypeAsDouble() == 1.0 for bond in atom.GetBonds()
+    )
+
+
+def _carbonyl_corrections(mol, assignments, corrections):
+    """Corrections 118-120: conjugated and halo-substituted carbonyls.
+
+    118 - a carbonyl (acid, ester, lactone, ketone, aldehyde) whose acyl
+           carbon neighbour is sp2/aromatic (paper Table 11); aryl
+           ketones and benzaldehyde always carry it by definition.
+    119 - a carbonyl with one acyl neighbour carrying two or more F/Cl.
+    120 - a carbonyl with two or more such neighbours (per paper Table
+           17c, 119 and 120 are mutually exclusive).
+    """
+    for gid in _HO_CONJUGATION_GIDS:
+        for claim in assignments.get(gid, ()):
+            cx = _carbonyl_carbon(mol, claim)
+            if cx is None:
+                continue
+            for nb in mol.GetAtomWithIdx(cx).GetNeighbors():
+                if nb.GetIdx() in claim and nb.GetSymbol() == "O":
+                    continue
+                if nb.GetIsAromatic() or any(
+                    b.GetBondTypeAsDouble() == 2.0 for b in nb.GetBonds()
+                ):
+                    corrections[118] = corrections.get(118, 0) + 1
+                    break
+    for gid in _HALO_CONJUGATION_GIDS:
+        for claim in assignments.get(gid, ()):
+            cx = _carbonyl_carbon(mol, claim)
+            if cx is None:
+                continue
+            halo_carbons = sum(
+                1
+                for nb in mol.GetAtomWithIdx(cx).GetNeighbors()
+                if nb.GetSymbol() == "C" and _halogen_count(nb) >= 2
+            )
+            if halo_carbons >= 2:
+                corrections[120] = corrections.get(120, 0) + 1
+            elif halo_carbons == 1:
+                corrections[119] = corrections.get(119, 0) + 1
+
+
+def _halogen_carbon_corrections(mol, corrections):
+    """Corrections 121/122: heavily halogenated carbon atoms.
+
+    121 - a carbon with three or more F/Cl neighbours (per carbon).
+    122 - a carbon with exactly two F/Cl and two carbon neighbours.
+    """
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() != "C":
+            continue
+        halo = _halogen_count(atom)
+        if halo >= 3:
+            corrections[121] = corrections.get(121, 0) + 1
+        elif halo == 2 and len(_carbon_neighbours(atom)) == 2:
+            corrections[122] = corrections.get(122, 0) + 1
+
+
+def _steric_corrections(mol, corrections):
+    """Corrections 130-133: crowded quaternary carbons and C-C bonds.
+
+    130 - a carbon with four carbon neighbours at least one of which is
+          aromatic or double-bonded (tert-butylbenzene crowding; the
+          bond from an sp3 carbon to a ring atom is single, so the
+          condition sits on the neighbour, not the bond).
+    131/132/133 - per *acyclic* single C(sp3)-C(sp3) bond, by the number
+          of further carbon neighbours of each endpoint: 2-2, 3-2, 3-3
+          (paper Table 2 names C2C-CC2 / C3C-CC2 / C3C-CC3). Ring bonds
+          are excluded: the bicyclohexyl junction bond is acyclic even
+          though its carbons are ring atoms, while cyclohexane ring
+          bonds must not fire (their crowding is parameterised by the
+          ring corrections 125/126).
+    """
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() != "C":
+            continue
+        nbs = _carbon_neighbours(atom)
+        if len(nbs) != 4:
+            continue
+        if any(
+            nb.GetIsAromatic()
+            or any(b.GetBondTypeAsDouble() == 2.0 for b in nb.GetBonds())
+            for nb in nbs
+        ):
+            corrections[130] = corrections.get(130, 0) + 1
+    seen_bonds = set()
+    for bond in mol.GetBonds():
+        a1, a2 = bond.GetBeginAtom(), bond.GetEndAtom()
+        key = tuple(sorted((a1.GetIdx(), a2.GetIdx())))
+        if key in seen_bonds or bond.IsInRing():
+            continue
+        seen_bonds.add(key)
+        if (
+            a1.GetSymbol() != "C"
+            or a2.GetSymbol() != "C"
+            or bond.GetBondTypeAsDouble() != 1.0
+            or not (_is_sp3(a1) and _is_sp3(a2))
+        ):
+            continue
+        d1 = sum(
+            1
+            for nb in a1.GetNeighbors()
+            if nb.GetSymbol() == "C" and nb.GetIdx() != a2.GetIdx()
+        )
+        d2 = sum(
+            1
+            for nb in a2.GetNeighbors()
+            if nb.GetSymbol() == "C" and nb.GetIdx() != a1.GetIdx()
+        )
+        pair = tuple(sorted((d1, d2)))
+        gid = {(2, 2): 131, (2, 3): 132, (3, 3): 133}.get(pair)
+        if gid is not None:
+            corrections[gid] = corrections.get(gid, 0) + 1
+
+
+def _ring_corrections(mol, corrections):
+    """Corrections 125-129: small rings and aromatic substitution patterns.
+
+    125/126 - one per SSSR ring of size 3-4 / 5 that is not fully
+              aromatic (cyclopropane/butane/pentane skeleton strain;
+              furan-style aromatic rings are excluded).
+    127/128/129 - ortho/meta/para: once per molecule, by the closest
+              pair of substituted, non-fused carbons of any aromatic
+              ring (ring-arc distance 1/2/3). Fused ring atoms carry
+              no substituent (naphthalene gets no o/m/p correction);
+              1,2,4-trimethylbenzene counts as ortho only.
+    """
+    loaded = load_rdkit()
+    if loaded is None:
+        return
+    rings = [list(ring) for ring in loaded[0].GetSymmSSSR(mol)]
+    for ring in rings:
+        size = len(ring)
+        if size not in (3, 4, 5):
+            continue
+        if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
+            continue
+        gid = 125 if size <= 4 else 126
+        corrections[gid] = corrections.get(gid, 0) + 1
+    ring_count = {}
+    for ring in rings:
+        for idx in ring:
+            ring_count[idx] = ring_count.get(idx, 0) + 1
+    closest = None
+    for ring in rings:
+        if not all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
+            continue
+        members = set(ring)
+        substituted = [
+            idx
+            for idx in ring
+            if ring_count[idx] == 1
+            and any(
+                nb.GetIdx() not in members
+                for nb in mol.GetAtomWithIdx(idx).GetNeighbors()
+            )
+        ]
+        for pos, i1 in enumerate(substituted):
+            for i2 in substituted[pos + 1:]:
+                d = ring_arc_distance(mol, i1, i2)
+                if d in (1, 2, 3) and (closest is None or d < closest):
+                    closest = d
+    if closest is not None:
+        corrections[{1: 127, 2: 128, 3: 129}[closest]] = 1
+
+
+def _hydrogen_count_corrections(mol, corrections):
+    """Corrections 123/124: molecules with zero/one hydrogen atom."""
+    n_h = sum(atom.GetTotalNumHs() for atom in mol.GetAtoms())
+    if n_h == 0:
+        corrections[123] = 1
+    elif n_h == 1:
+        corrections[124] = 1
+
+
