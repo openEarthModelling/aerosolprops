@@ -206,3 +206,95 @@ def test_battery_fragments_with_full_atom_balance():
         assert NannoolalBP(mol=mol).boiling_point() is not None
 
 
+# --- Gate 6: priority adjudication on the real catalogue --------------
+
+
+@pytest.mark.parametrize(
+    "smi,expected",
+    [
+        # 22 (CH carbon, exactly one co-halogen) vs 23 (two co-halogens):
+        # the CHF2 end of FC(Cl)C(F)F carries one co-fluorine only.
+        ("FC(Cl)C(F)F", {7: 2, 22: 3, 26: 1}),
+        ("FC(F)Cl", {7: 1, 23: 2, 27: 1, 121: 1, 124: 1}),
+        # 21 beats 19 (quaternary carbon with co-fluorine).
+        ("FC(F)(F)CCl", {7: 2, 21: 3, 25: 1, 121: 1}),
+        # 26/27 split by co-halogen count, never plain 25.
+        ("ClCCl", {7: 1, 26: 2}),
+        ("ClC(Cl)Cl", {7: 1, 27: 3, 121: 1, 124: 1}),
+        ("ClCCCl", {7: 2, 25: 2}),
+        # 45 acyclic vs 47 cyclic ester split on the ring O.
+        ("CCOC(C)=O", {1: 2, 7: 1, 45: 1}),
+        ("O=C1OCCC1", {47: 1, 9: 2, 13: 1, 126: 1}),
+        # 39 claims the epoxide triangle before the plain ether 38.
+        ("C1C(O1)CCl", {7: 1, 25: 1, 39: 1, 125: 1}),
+        # 61 claims a terminal C=C before the substituted families.
+        ("C=CCl", {29: 1, 61: 1}),
+        ("CC=CC", {1: 2, 58: 1}),
+    ],
+)
+def test_priority_adjudication(smi, expected):
+    counts, _n, ok, status = nannoolal_fragmentation(mol_from_smiles(smi))
+    assert (ok, status) == (True, "OK")
+    assert counts == expected
+
+
+# --- Gate 7: no-GI branch and refusals --------------------------------
+
+
+@pytest.mark.parametrize(
+    "smi",
+    [
+        "CC(C)(C)OO",  # 301 hydroperoxide
+        "CC(=O)OO",  # 302 peroxy acid
+        "CC(=O)OON(=O)=O",  # 303 PAN
+        "CCCC(=O)OON(=O)=O",  # 303 PBN
+    ],
+)
+def test_extension_groups_take_the_no_gi_branch(smi):
+    nnp = NannoolalBP(smi=smi)
+    assert nnp.success
+    assert any(gid in nnp.counts for gid in (301, 302, 303))
+    # GI is skipped (zero) and flagged, not silently estimated.
+    gi, status = nannoolal_bp_gi(nnp.counts, nnp.n)
+    assert (gi, status) == (0.0, GI_STATUS_NO_GI)
+    assert nnp.boiling_point() is not None
+    assert nnp.gi_status == GI_STATUS_NO_GI
+
+
+@pytest.mark.parametrize(
+    "smi,pair",
+    [
+        # Table 5 row 153: B-G printed without a value.
+        ("CC(=O)c1ccc(O)cc1", ("B", "G")),
+        # Table 5 row 211: R-R printed without a value.
+        ("c1cn[nH]c1", ("R", "R")),
+    ],
+)
+def test_missing_interaction_parameters_refuse(smi, pair):
+    nnp = NannoolalBP(smi=smi)
+    assert nnp.success
+    gi, status = nannoolal_bp_gi(nnp.counts, nnp.n)
+    assert gi is None
+    assert status == "missing interaction parameter (%s, %s)" % pair
+    assert nnp.boiling_point() is None
+    assert nnp.status == "refused: missing interaction parameter"
+
+
+def test_plain_molecules_get_gi_status_ok():
+    nnp = NannoolalBP(smi="CC(O)CNCC(O)C")
+    assert nnp.boiling_point() is not None
+    assert nnp.gi_status == GI_STATUS_OK
+
+
+def test_out_of_scope_molecules_fail_cleanly():
+    # Element gate: the paper covers Si/P but aeroprops does not
+    # parameterise those families (documented scope cut).
+    nnp = NannoolalBP(smi="C[Si](C)(C)C")
+    assert not nnp.success
+    assert "unsupported element" in nnp.status
+    assert nnp.boiling_point() is None
+    # No group parameterises pyridine N-oxide: unclaimed atom, and the
+    # wrapper refuses rather than estimating something meaningless.
+    nnp = NannoolalBP(smi="c1cc[n+]([O-])cc1")
+    assert not nnp.success
+    assert "unclaimed atom" in nnp.status
