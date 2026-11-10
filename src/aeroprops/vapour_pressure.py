@@ -82,6 +82,7 @@ __all__ = [
     "evaporation_fragmentation",
     "NANNOOLAL_VP_SMARTS",
     "nannoolal_vp_fragmentation",
+    "NannoolalVP",
 ]
 
 #: Elements covered by the SIMPOL.1 group catalogue (paper Table 5:
@@ -1605,7 +1606,12 @@ class EVAPORATION:
 #   automatically below).
 
 from .fragmentation import PriorityFragmenter
-from .methods.nannoolal_vp import NANNOOLAL_VP_GROUPS
+from .methods.nannoolal_vp import (
+    NANNOOLAL_VP_GROUPS,
+    nannoolal_vp_boiling_point,
+    nannoolal_vp_dB,
+    nannoolal_vp_log10_vapour_pressure,
+)
 
 #: SMARTS catalogue: group ID -> (pattern, claim); see the Part 1
 #: catalogue (aeroprops.boiling_point.NANNOOLAL_BP_SMARTS) for the
@@ -2049,3 +2055,154 @@ def nannoolal_vp_fragmentation(mol):
     _nvp_hydrogen_count_corrections(mol, corrections)
     counts.update(corrections)
     return counts, n, True, "OK"
+
+
+class NannoolalVP:
+    """Vapour pressure of pure components (Nannoolal Part 3, 2008).
+
+    Wraps :func:`nannoolal_vp_fragmentation` and the pure estimators of
+    :mod:`aeroprops.methods.nannoolal_vp` in the thermo ``Joback``
+    idiom (one-time fragmentation in the constructor, ``counts`` /
+    ``success`` / ``status`` attributes, estimators return ``None`` on
+    failure - never zero). Like :class:`MyrdalYalkowsky` this is an
+    *input* method: paper Eq. (6) needs the normal boiling point
+    ``Tb``, routed from Nannoolal Part 1 (the default), ``thermo``'s
+    Joback method, or experimental data.
+
+    Parameters
+    ----------
+    mol : Mol, optional
+        Normalisation is applied internally; pass any parsed RDKit
+        molecule.
+    smi : str, optional
+        SMILES string, used when `mol` is not given.
+    tb : float, optional
+        Experimental normal boiling point [K]; overrides `tb_source`
+        (recorded as ``"experimental"``).
+    tb_source : str, optional
+        Where an absent ``tb`` comes from: ``"nannoolal"`` (default),
+        ``"joback"`` or ``"experimental"``.
+
+    Attributes
+    ----------
+    counts : dict
+        Non-zero group counts (empty on parse/element failure; partial
+        counts when an atom stays unclaimed).
+    n : int
+        Number of non-hydrogen atoms (0 on parse failure).
+    db, db_status
+        The Eq. (7) slope and its status, computed once in the
+        constructor (``db`` ``None`` when a valueless group or a
+        missing interaction parameter refuses the estimate).
+    gi_status : str
+        Status of the group-interaction term: ``"OK"``, the no-GI flag
+        for Compernolle extension groups, or the refusal reason.
+    tb, tb_source
+        The resolved inputs.
+    success : bool
+    status : str
+
+    Examples
+    --------
+    Paper Table 15a (alpha-pinene, experimental Tb 429.0 K; the table
+    prints 31.03 kPa at 388.15 K):
+
+    >>> vp = NannoolalVP(smi="CC1=CCC2CC1C2(C)C", tb=429.0)
+    >>> (vp.success, vp.db_status, round(vp.db, 7))
+    (True, 'OK', 0.1078596)
+    >>> round(10.0 ** vp.log10_vapour_pressure(388.15) / 1000.0, 2)
+    31.03
+
+    Glycine carries a COOH and an NH2: Table 6 row 218 prints "Do not
+    estimate" for the pair, so the estimate is refused - never zeroed:
+
+    >>> vp = NannoolalVP(smi="NCC(=O)O", tb=501.5)
+    >>> vp.db is None
+    True
+    >>> vp.db_status
+    'missing interaction parameter (C, M)'
+    """
+
+    def __init__(self, mol=None, smi=None, tb=None, tb_source="nannoolal"):
+        # set on every path (including failures): the attributes of a
+        # thermo-style wrapper always exist, never AttributeError
+        self.tb_source = "experimental" if tb is not None else tb_source
+        self.counts, self.n = {}, 0
+        self.success, self.status = False, "Failed to construct mol"
+        self.db, self.db_status, self.gi_status = None, None, None
+        self.tb = None
+        if mol is None:
+            mol = None if smi is None else mol_from_smiles(smi)
+        else:
+            mol = normalize_mol(mol)
+        if mol is None:
+            self.mol = None
+            return
+        self.mol = mol
+        self.counts, self.n, self.success, self.status = (
+            nannoolal_vp_fragmentation(mol)
+        )
+        # the Eq. (7) slope needs no Tb: compute it once, whatever the
+        # Tb route later does
+        if self.success:
+            self.db, self.db_status = nannoolal_vp_dB(self.counts, self.n)
+            self.gi_status = self.db_status
+        self.tb = float(tb) if tb is not None and tb > 0.0 else None
+        if tb is not None and self.tb is None:
+            self.success, self.status = False, "invalid experimental Tb"
+            return
+        if not self.success:
+            return
+        if self.tb is None:
+            self.tb, error = _resolve_normal_boiling_point(
+                mol, smi, self.tb_source
+            )
+            if error is not None:
+                self.status = error
+            if self.tb is None:
+                self.success = False
+                return
+
+    def log10_vapour_pressure(self, T=298.15):
+        """Base-10 logarithm of the vapour pressure [log10 Pa].
+
+        Returns ``None`` on any failure; refuses (with a status) when
+        the slope was refused. Emits a warning above the normal boiling
+        point, where Eq. 6 extrapolates outside its fitted range.
+        """
+        if not self.success or self.db is None:
+            if self.success and self.db is None:
+                self.status = "refused: " + self.db_status
+            return None
+        if not T > 0.0:
+            return None
+        if T > self.tb:
+            warnings.warn(
+                "T = %.1f K exceeds Tb = %.1f K: Eq. 6 extrapolates "
+                "beyond the normal boiling point" % (T, self.tb),
+                stacklevel=2,
+            )
+        return nannoolal_vp_log10_vapour_pressure(
+            self.counts, self.n, T, self.tb
+        )
+
+    def vapour_pressure(self, T=298.15):
+        """Vapour pressure [Pa], or ``None`` on any failure."""
+        log10p = self.log10_vapour_pressure(T)
+        return None if log10p is None else 10.0 ** log10p
+
+    def boiling_point_from_pressure(self, T, p):
+        """Normal boiling point [K] from one measured point (Appendix A).
+
+        Inverts Eq. (6) at pressure `p` [Pa] measured at temperature
+        `T` [K] (paper Table 15f: 520.85 K from 0.4 kPa at 374.65 K):
+
+        >>> vp = NannoolalVP(smi="CCCOC(=O)CCC(=O)OCCC", tb=520.85)
+        >>> round(vp.boiling_point_from_pressure(374.65, 0.4e3), 2)
+        520.85
+        """
+        if not self.success or self.db is None:
+            return None
+        if not T > 0.0 or not p > 0.0:
+            return None
+        return nannoolal_vp_boiling_point(self.counts, self.n, T, p)
