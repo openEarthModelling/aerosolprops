@@ -11,20 +11,20 @@ family: strict SI units, estimators as pure functions of group counts where
 possible, and failures that return `None` rather than raise.
 
 **Status: pre-alpha.** The repository currently contains the packaging
-skeleton, CI, documentation scaffold, and the structure/topology foundation
-layers. The estimators below land one method at a time, each with
-coefficients entered from the published papers and tests against literature
-values.
+skeleton, CI, documentation scaffold, the structure/topology foundation
+layers, and the first estimator (SIMPOL.1). The remaining methods below
+land one at a time, each with coefficients entered from the published
+papers and tests against literature values.
 
-## Planned methods (v0.1)
+## Methods (v0.1)
 
-| Method | Property | Reference |
-|---|---|---|
-| SIMPOL.1 | Vapour pressure | Pankow & Asher, [ACP 8, 2773 (2008)](https://doi.org/10.5194/acp-8-2773-2008) |
-| EVAPORATION | Vapour pressure | Compernolle et al., [ACP 11, 9431 (2011)](https://doi.org/10.5194/acp-11-9431-2011) |
-| Nannoolal Part 1 (+ SOA extension groups) | Normal boiling point | Nannoolal et al., [FPE 226, 45 (2004)](https://doi.org/10.1016/j.fluid.2004.09.001); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
-| Nannoolal Part 3 | Vapour pressure | Nannoolal et al., [FPE 269, 117 (2008)](https://doi.org/10.1016/j.fluid.2008.04.020) |
-| Myrdal–Yalkowsky (+ H-bonding extension) | Vapour pressure | Myrdal & Yalkowsky, [IECR 36, 2494 (1997)](https://doi.org/10.1021/ie950242l); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
+| Method | Property | Status | Reference |
+|---|---|---|---|
+| SIMPOL.1 | Vapour pressure | implemented | Pankow & Asher, [ACP 8, 2773 (2008)](https://doi.org/10.5194/acp-8-2773-2008) |
+| EVAPORATION | Vapour pressure | planned | Compernolle et al., [ACP 11, 9431 (2011)](https://doi.org/10.5194/acp-11-9431-2011) |
+| Nannoolal Part 1 (+ SOA extension groups) | Normal boiling point | planned | Nannoolal et al., [FPE 226, 45 (2004)](https://doi.org/10.1016/j.fluid.2004.09.001); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
+| Nannoolal Part 3 | Vapour pressure | planned | Nannoolal et al., [FPE 269, 117 (2008)](https://doi.org/10.1016/j.fluid.2008.04.020) |
+| Myrdal–Yalkowsky (+ H-bonding extension) | Vapour pressure | planned | Myrdal & Yalkowsky, [IECR 36, 2494 (1997)](https://doi.org/10.1021/ie950242l); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
 
 Boiling points used as inputs (by Myrdal–Yalkowsky and Nannoolal Part 3) can
 come from the self-implemented Nannoolal Part 1 route, from `thermo`'s
@@ -56,9 +56,13 @@ RDKit and `thermo` are required dependencies.
   translation of paper semantics (e.g. SIMPOL.1 "acid-side carbons",
   EVAPORATION "in-chain oxygen") onto those primitives.
 - **`thermo` compatibility.** aeroprops hard-depends on `thermo` and follows
-  its group-contribution architecture (`BaseGroupContribution` subclass,
-  `{group_id: coefficient record}` catalogues, counts-based static
-  estimators), so pieces can be contributed upstream with minimal rework.
+  its group-contribution conventions (`{group_id: coefficient record}`
+  catalogues, counts-based static estimators, Joback-style one-time
+  fragmenting wrappers). Where a method's counting semantics do not fit
+  `thermo`'s mutually-exclusive SMARTS partition (SIMPOL.1's groups overlap
+  and replace one another additively), aeroprops ships its own fragmenter
+  but keeps the same interface, so pieces can still be contributed upstream
+  with minimal rework.
 
 ## Licensing and data provenance
 
