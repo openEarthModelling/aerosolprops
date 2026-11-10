@@ -35,6 +35,21 @@ methods — so pieces remain extractable upstream.
 
 __version__ = "0.1.0.dev0"
 
-from . import methods, structure, topology, vapour_pressure
+from . import (
+    boiling_point,
+    fragmentation,
+    methods,
+    structure,
+    topology,
+    vapour_pressure,
+)
 
-__all__ = ["__version__", "methods", "structure", "topology", "vapour_pressure"]
+__all__ = [
+    "__version__",
+    "boiling_point",
+    "fragmentation",
+    "methods",
+    "structure",
+    "topology",
+    "vapour_pressure",
+]

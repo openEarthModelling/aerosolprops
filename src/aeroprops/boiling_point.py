@@ -24,6 +24,24 @@ fail cleanly with a status naming the missing family: atmospheric SOA
 chemistry is outside their scope and transcribing them without test
 compounds would be guesswork.
 
+Examples
+--------
+Paper Table 17a (3,3,4,4-tetramethylhexane; experimental Tb 444.0 K):
+
+>>> nnp = NannoolalBP(smi="CCC(C)(C)C(C)(C)CC")
+>>> (nnp.success, nnp.status, nnp.n, nnp.counts)
+(True, 'OK', 10, {1: 6, 4: 2, 6: 2, 133: 1})
+>>> round(nnp.boiling_point(), 1)
+429.5
+
+Ethanol (paper Table 1, group 36 "OH short chain (<C5)"; experimental
+Tb 351.5 K):
+
+>>> nnp = NannoolalBP(smi="CCO")
+>>> (nnp.success, nnp.counts, nnp.n)
+(True, {1: 1, 7: 1, 36: 1}, 3)
+>>> round(nnp.boiling_point(), 1)
+333.1
 """
 
 from .fragmentation import PriorityFragmenter
@@ -452,3 +470,157 @@ def _hydrogen_count_corrections(mol, corrections):
         corrections[124] = 1
 
 
+def nannoolal_fragmentation(mol):
+    """Fragment `mol` into Nannoolal Part 1 groups (paper Tables 1-2).
+
+    Parameters
+    ----------
+    mol : Mol
+        Normalised RDKit molecule.
+
+    Returns
+    -------
+    counts : dict
+        Group ID -> count, main groups plus second-order corrections
+        118-133 plus extension groups 301-303.
+    n : int
+        Number of non-hydrogen atoms (paper Eq. (1) normalisation; note
+        the paper counts *every* non-H atom including sulfur - this is
+        a deliberate difference from UManSysProp, which omits S).
+    success : bool
+    status : str
+        ``"OK"``, or the reason the molecule cannot be parameterised
+        (unsupported element, unclaimed atom, failed parse).
+
+    Examples
+    --------
+    Paper Table 17b (di-isopropanolamine):
+
+    >>> counts, n, ok, status = nannoolal_fragmentation(
+    ...     mol_from_smiles("CC(O)CNCC(O)C"))
+    >>> (ok, status, n, counts)
+    (True, 'OK', 9, {1: 2, 7: 4, 34: 2, 42: 1})
+    """
+    if mol is None:
+        return {}, 0, False, "Failed to construct mol"
+    unsupported = sorted(
+        {
+            atom.GetSymbol()
+            for atom in mol.GetAtoms()
+            if atom.GetSymbol() not in NANNOOLAL_BP_ELEMENTS
+        }
+    )
+    if unsupported:
+        return {}, mol.GetNumAtoms(), False, (
+            "unsupported element(s) %s: outside the C/N/O/S/F/Cl/Br/I "
+            "families aeroprops parameterises" % ", ".join(unsupported)
+        )
+    counts, assignments, success, status = _nannoolal_engine().fragment(mol)
+    n = mol.GetNumAtoms()
+    counts = dict(sorted(counts.items()))
+    if not success:
+        return counts, n, False, status
+
+    # Group 36: paper Table 1 reclassifies every alcohol OH of a
+    # molecule with fewer than five carbon atoms; Table 17b keeps 34 for
+    # the six-carbon di-isopropanolamine. The claimed atoms are
+    # unchanged.
+    n_carbon = sum(
+        1 for atom in mol.GetAtoms() if atom.GetSymbol() == "C"
+    )
+    if n_carbon < 5:
+        n_oh = sum(counts.pop(gid, 0) for gid in (33, 34, 35, 36))
+        if n_oh:
+            counts[36] = n_oh
+
+    corrections = {}
+    _carbonyl_corrections(mol, assignments, corrections)
+    _halogen_carbon_corrections(mol, corrections)
+    _steric_corrections(mol, corrections)
+    _ring_corrections(mol, corrections)
+    _hydrogen_count_corrections(mol, corrections)
+    counts.update(corrections)
+    return counts, n, True, "OK"
+
+
+class NannoolalBP:
+    """Normal boiling point of pure components (Nannoolal Part 1, 2004).
+
+    Wraps :func:`nannoolal_fragmentation` and the pure estimators of
+    :mod:`aeroprops.methods.nannoolal_bp` in the thermo ``Joback``
+    idiom: fragmentation runs once in the constructor, results are
+    stored on the instance, and the estimation method returns ``None``
+    if fragmentation failed or a required group interaction has no
+    published value (paper Table 5 rows 153/211) - never zero.
+
+    Parameters
+    ----------
+    mol : Mol, optional
+        Normalisation is applied internally; pass any parsed RDKit
+        molecule.
+    smi : str, optional
+        SMILES string, used when `mol` is not given.
+
+    Attributes
+    ----------
+    counts : dict
+        Non-zero group counts (empty on failure); IDs follow paper
+        Tables 1-2, extensions 301-303 follow Compernolle (2010).
+    n : int
+        Number of non-hydrogen atoms (0 on failure).
+    success : bool
+    status : str
+        ``"OK"`` on success, otherwise the failure reason.
+    gi_status : str
+        Status of the group-interaction term: ``"OK"`` or
+        ``"no-GI (extension groups present)"`` when extension groups
+        force the reduced-confidence branch (Compernolle 2010: no
+        interaction parameters derivable).
+
+    Examples
+    --------
+    Paper Table 17c (hexafluoroacetone; experimental Tb 245.9 K):
+
+    >>> nnp = NannoolalBP(smi="FC(F)(F)C(=O)C(F)(F)F")
+    >>> (nnp.success, nnp.status, nnp.n)
+    (True, 'OK', 10)
+    >>> sorted(nnp.counts.items())
+    [(7, 2), (21, 6), (51, 1), (120, 1), (121, 2), (123, 1)]
+    >>> round(nnp.boiling_point(), 1)
+    246.3
+    """
+
+    def __init__(self, mol=None, smi=None):
+        if mol is None:
+            mol = None if smi is None else mol_from_smiles(smi)
+        else:
+            mol = normalize_mol(mol)
+        if mol is None:
+            self.counts, self.n = {}, 0
+            self.success, self.status = False, "Failed to construct mol"
+        else:
+            self.counts, self.n, self.success, self.status = (
+                nannoolal_fragmentation(mol)
+            )
+        self.gi_status = None
+
+    def boiling_point(self):
+        """Normal boiling point [K], or ``None`` on any failure.
+
+        Refuses (returns ``None`` and records the reason in
+        ``self.status``) when the molecule needs an interaction the
+        paper prints without a value. Molecules with Compernolle
+        extension groups are estimated without the GI term and flagged
+        in ``self.gi_status`` instead.
+        """
+        if not self.success:
+            return None
+        gi, self.gi_status = nannoolal_bp_gi(self.counts, self.n)
+        tb = nannoolal_bp_boiling_point(self.counts, self.n)
+        if tb is None:
+            self.status = (
+                "refused: missing interaction parameter"
+                if gi is None
+                else "refused: invalid group counts"
+            )
+        return tb
