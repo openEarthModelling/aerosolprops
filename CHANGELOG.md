@@ -31,7 +31,7 @@ and the project adheres to [semantic versioning](https://semver.org/).
     element-conservation suite, per-rule counting-semantics units, and a
     live UManSysProp oracle gate — 26/26 Example_output molecules with
     identical upstream-mode counts and log10 P agreement to 1e-12 (empty
-    divergence whitelist), plus 49 probe molecules locked twice against
+    divergence whitelist), plus 51 probe molecules locked twice against
     recorded and live oracle counts.
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004; SOA extension groups from Compernolle et al., ACP 10, 6271,

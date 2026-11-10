@@ -54,7 +54,7 @@ def _live_assembled(ums, smi):
     return _evaporation_assemble_upstream(raw)
 
 
-#: 49 probe molecules covering every decoded counting rule, with the
+#: 51 probe molecules covering every decoded counting rule, with the
 #: assembled upstream-mode counts recorded from the live oracle
 #: (2026-11-10, UManSysProp public master). Key "1" (carbon count,
 #: which the oracle reports but aeroprops drops) removed; zero counts
@@ -80,6 +80,10 @@ CONTROLS = [
      {'14': 2, '19': 1, '2': 6, '3': 1.0, '8': 1, '9': 3}),
     ('cyclohexane', 'C1CCCCC1', {'2': 6, '3': -1.0}),
     ('cyclohexanone', 'O=C1CCCCC1', {'12': 1, '12CL': 1, '2': 6, '3': -1.0, '5': 1}),
+    # sqrt-branch k12 coverage: n_HB > 1 with typed 12HB ring hydroxyls
+    # (the A parameter takes k12 only through its typed split there)
+    ('cyclohexanetriol', 'OC1CC(O)CCC1O',
+     {'12': 3, '12HB': 3, '14': 3, '19': 2, '2': 6, '3': -1.0, '8': 3}),
     ('ethyl-acetate', 'CC(=O)OCC', {'2': 5, '6': 1}),
     ('ethyl-pyruvate', 'CCOC(=O)C(=O)C', {'16': 1, '2': 6, '5': 1, '6': 1}),
     ('ethylene-glycol', 'OCCO', {'19': 2, '2': 2, '8': 2}),
@@ -93,6 +97,11 @@ CONTROLS = [
     ('hydroxyacetone', 'CC(=O)CO', {'18': 1, '19': 1, '2': 3, '5': 1, '8': 1}),
     ('hydroxyethyl-hydroperoxide', 'OCCOO', {'10': 1, '19': 1, '2': 2, '8': 1}),
     ('hydroxyethyl-nitrate', 'OCCO[N+](=O)[O-]', {'19': 1, '2': 2, '8': 1}),
+    # sqrt-branch k12 coverage: n_CL > 1 where the ester acyl carbon is
+    # on the ring (upstream submode 602: aggregate "12" only, no typed
+    # split - it drops out of the A parameter entirely there)
+    ('lactone-ketone', 'O=C1OCC(=O)CC1',
+     {'12': 2, '12CL': 1, '18': 1, '2': 6, '3': -1.0, '5': 1, '6': 1}),
     ('mbtca', 'CC(C)(C(=O)O)C(C(=O)O)CC(=O)O', {'2': 8, '3': 7.0, '9': 3}),
     ('methane', 'C', {'2': 1}),
     ('methoxyacetaldehyde', 'COCC=O', {'18': 1, '2': 4, '5': 1}),
