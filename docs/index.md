@@ -17,7 +17,7 @@ failures that return `None` rather than raise.
 | [SIMPOL.1](methods/simpol1.md) | Vapour pressure | structure only | implemented |
 | [EVAPORATION](methods/evaporation.md) | Vapour pressure | structure only | implemented |
 | [Nannoolal Part 1](methods/nannoolal.md) | Normal boiling point | structure only | implemented |
-| [Nannoolal Part 3](methods/nannoolal.md) | Vapour pressure | + boiling point | planned v0.1 |
+| [Nannoolal Part 3](methods/nannoolal.md) | Vapour pressure | + boiling point | implemented |
 | [Myrdal–Yalkowsky](methods/myrdal_yalkowsky.md) | Vapour pressure | + Tb, Tm | implemented |
 
 Boiling points used as inputs can come from Nannoolal Part 1, from

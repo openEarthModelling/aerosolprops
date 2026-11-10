@@ -8,6 +8,39 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ### Added
 
+- Nannoolal Part 3 vapour pressure (Nannoolal, Rarey & Ramjugernath,
+  FPE 269, 117-133, 2008; SOA extension groups from Compernolle et
+  al., ACP 10, 6271, 2010): the fourth and final estimator method.
+  - `aeroprops.methods.nannoolal_vp` (pure layer): the Eq. 6/7
+    estimators (`nannoolal_vp_dB`, `nannoolal_vp_log10_vapour_pressure`,
+    `nannoolal_vp_boiling_point` via the Appendix A inversion), the
+    Table 4 dB catalogue (115 groups; the three Part 3 fragmentation
+    deltas vs Part 1 — the valueless 1,2-diketone 118, conjugation
+    renumbered to 134, aromatic carbon split 18/214), Table 5
+    second-order values, the Table 6 interaction matrix (45 rows, 19
+    classes; row 218 (C, M) "Do not estimate" fails rather than
+    zero-fills) and the Compernolle extension values on the no-GI
+    branch.
+  - `aeroprops.vapour_pressure` (wrapper layer):
+    `nannoolal_vp_fragmentation` — the Part 3 catalogue on the shared
+    `PriorityFragmenter` engine with the OH-family short-chain (<5 C)
+    and gem-diol reassignments — and the `NannoolalVP` class routing
+    `Tb` from Nannoolal Part 1 (the default), `thermo`'s Joback or
+    experimental data, with `db`/`db_status` eager in the constructor
+    and `T > Tb` extrapolation warnings. Valueless groups (106, 108,
+    118, 129) are counted then refused, never zeroed.
+  - Verification: coefficient triple-guard (two independent
+    transcriptions of Tables 4/5/6 plus census/priority tests), all
+    eight worked examples 15a-15h through the real fragmenter (dB to
+    seven decimals; the 15g printed dB is a misprint resolved by the
+    formula; the 15h atom-count line is a paper typo), literature
+    regression rows, counting/atom-balance semantics over ~100
+    molecules, read-only fragmentation, three-route/failure gates on
+    the wrapper, and a live UManSysProp oracle comparison (all 26
+    Example_output goldens reproduce the shipped column; 60 controls;
+    evidence-backed whitelist recording three UMS data misprints for
+    groups 7/48/303, the 129-as-zero and row-218 zero-fill deviations,
+    and the extension-GI stuffing).
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
   1997; hydrogen-bonding extension from Compernolle et al., ACP 10,
   6271, 2010): the third estimator method.

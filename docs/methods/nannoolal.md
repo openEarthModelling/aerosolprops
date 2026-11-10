@@ -1,10 +1,12 @@
 # Nannoolal boiling point (Part 1) and vapour pressure (Part 3)
 
-**Status:** Part 1 is implemented (`aeroprops.methods.nannoolal_bp` for
-the pure estimator and coefficient catalogue,
-`aeroprops.boiling_point.NannoolalBP` for the object-oriented wrapper).
-Part 3 (vapour pressure) is planned for v0.1 and can take its boiling
-point input from Part 1.
+**Status:** both parts are implemented. Part 1:
+`aeroprops.methods.nannoolal_bp` (pure estimator and coefficient
+catalogue) and `aeroprops.boiling_point.NannoolalBP` (object-oriented
+wrapper). Part 3: `aeroprops.methods.nannoolal_vp` (pure estimator and
+coefficient catalogue) and `aeroprops.vapour_pressure.NannoolalVP`
+(wrapper), which takes its boiling-point input from Part 1 by default,
+from `thermo`'s Joback method, or from experimental data.
 
 ## References
 
@@ -28,15 +30,31 @@ point input from Part 1.
 - Part 1: structure-only normal boiling point (second-order groups plus
   group interactions). Used both as a standalone method and as the Tb input
   of Part 3. Contributions are in kelvin; `boiling_point()` returns K.
-- 132 groups: 113 paper main groups (IDs 1–117), 16 second-order
-  corrections (118–133), and the 3 SOA extension groups of Compernolle
-  et al. (301–303). Extension groups enter without interaction
-  contributions (per that paper no GI parameters exist for them); a
-  molecule containing one is estimated with GI = 0 and flagged
+- Part 1 has 132 groups: 113 paper main groups (IDs 1–117), 16
+  second-order corrections (118–133), and the 3 SOA extension groups of
+  Compernolle et al. (301–303). Extension groups enter without
+  interaction contributions (per that paper no GI parameters exist for
+  them); a molecule containing one is estimated with GI = 0 and flagged
   (`gi_status == 'no-GI (extension groups present)'`).
-- 76 group-interaction parameters between 19 interaction classes
-  (paper Table 5); the two pairs printed without a value (B–G, R–R)
-  make the estimation *fail* rather than silently contributing zero.
+- Part 1 has 76 group-interaction parameters between 19 interaction
+  classes (paper Table 5); the two pairs printed without a value
+  (B–G, R–R) make the estimation *fail* rather than silently
+  contributing zero.
+- Part 3 (vapour pressure): paper Eq. 6,
+  log10(P/1 atm) = (4.1012 + dB)·(T_rb − 1)/(T_rb − 1/8) with
+  T_rb = T/Tb, where dB (Eq. 7) is a group sum plus the Table 6 group
+  interactions minus 0.176055. Output is log10(P/Pa) (the atm→Pa
+  constant is applied inside the estimator); Appendix A inverts Eq. 6
+  for the boiling point at a given pressure
+  (`boiling_point_from_pressure`).
+- Part 3 group set: the Part 1 catalogue with exactly three
+  fragmentation deltas — the 1,2-diketone main group 118 (valueless:
+  counted, then refused), the conjugation correction renumbered
+  118 → 134, and the aromatic carbon split 18 (three aromatic bonds,
+  fused) vs 214 (two aromatic bonds plus an aliphatic bridge bond,
+  e.g. biphenyl). The para-pair group 129 is likewise counted and then
+  refused (Table 5 prints no value for it); Table 6 row 218 (C, M) is
+  printed "Do not estimate" and fails rather than zero-filling.
 - Elements covered: C, N, O, S, F, Cl, Br, I. The paper also
   parameterises Si/Ge/Sn/P/As families — out of scope for aeroprops and
   rejected by the element gate.
@@ -84,6 +102,50 @@ unparseable SMILES, elements outside the parameterised set, an atom no
 group claims (out of scope by construction, e.g. the pyrazole NH or a
 sulfonate ester), and the two parameter-less interaction pairs.
 
+## Part 3 quick start
+
+```python
+>>> from aeroprops.vapour_pressure import NannoolalVP
+>>> w = NannoolalVP(smi="CCO")    # ethanol; Tb routed from Part 1
+>>> w.counts, round(w.db, 7)
+({1: 1, 7: 1, 36: 1}, 0.6311822)
+>>> round(w.tb, 4)                # K, the Part 1 estimate
+333.0861
+>>> round(w.log10_vapour_pressure(298.15), 4)   # log10(Pa)
+4.3612
+>>> round(w.vapour_pressure(298.15), 1)         # Pa
+22971.4
+```
+
+Paper worked example 15a (α-pinene at 388.15 K, Tb = 429.0 K)
+reproduces through the real fragmenter:
+
+```python
+>>> vp = NannoolalVP(smi="CC1=CCC2CC1C2(C)C", tb=429.0)
+>>> (vp.success, round(vp.db, 7))
+(True, 0.1078596)
+>>> round(10.0 ** vp.log10_vapour_pressure(388.15) / 1000.0, 2)  # kPa
+31.03
+```
+
+Refusals never return zero: glycine carries a COOH and an NH2, and
+Table 6 row 218 (C, M) is printed "Do not estimate":
+
+```python
+>>> g = NannoolalVP(smi="NCC(=O)O", tb=501.5)
+>>> g.log10_vapour_pressure(298.15) is None
+True
+>>> g.status
+'refused: missing interaction parameter (C, M)'
+```
+
+The same refusal discipline applies to the valueless groups 106/108/118
+(imidazole-type N, thiocyanate carbon, 1,2-diketone) and the para pair
+129 — all counted by the fragmenter, then refused by the estimator —
+and to `Tb` routing failures (experimental `tb` missing, Joback
+unavailable, Part 1 refusal), which propagate into `status` with the
+route named.
+
 ## Accuracy
 
 - Paper worked examples 17a–17d: 429.5 / 509.3 / 246.3 / 490.7 K
@@ -94,6 +156,15 @@ sulfonate ester), and the two parameter-less interaction pairs.
 - Part 1 overall (paper §4): absolute average deviation 6.52 K over
   2812 regression compounds; 6.37 K mean absolute deviation on the
   199-compound external validation set.
+- Part 3: all eight worked examples of Tables 15a–15h reproduce
+  end-to-end through the real fragmenter (dB to the printed seven
+  decimals, pressures within the paper's own display rounding); the
+  15f boiling-point inversion via the Appendix A form returns 520.85 K
+  as printed. The paper's §5 validation reports average relative
+  deviations against the Antoine equation per compound family and
+  pressure range (e.g. hydrocarbons 4.0% overall vs Antoine's 3.4%,
+  with this work clearly better in the very-low-pressure range);
+  aeroprops inherits that accuracy by construction of the coefficients.
 
 ## Implementation notes
 
@@ -127,6 +198,32 @@ sulfonate ester), and the two parameter-less interaction pairs.
   `tests/test_oracle_nannoolal.py` — including UMS silently dropping
   the N(O)O fragment and entire group families (aromatic N 67, bridge
   head 18, amide 48, S groups, perfluoro family).
+- Part 3 reuses the same `PriorityFragmenter` engine with a Part 3
+  catalogue: the Part 1 SMARTS plus the three deltas above, priorities
+  taken from the Part 3 tables (extension groups 303/302/301 keep
+  priorities 1/2/3 as in Part 1). The OH-family Table 1 short-chain
+  rule (fewer than 5 carbons → group 36) is applied per the Part 3
+  group definitions before the neighbour-count classes, plus the
+  gem-diol fallback.
+- Part 3 transcription adjudications (documented in tests): Table 4
+  rows 74/75 print 510.9666 (nitrite) and 1317.4360 (oxime); the
+  assignment is confirmed by the independent Part 1 fits. Questionable
+  values (ID 91, the (E,E) interaction 187) are recorded verbatim.
+  Groups 98/110 (printed without values in the Part 1 numbering)
+  carry parked values in `NANNOOLAL_VP_UNDEFINED_VALUE_GROUPS` but stay
+  excluded.
+- The Part 3 oracle suite (`tests/test_oracle_nannoolal_vp.py`) runs
+  UMS's `vapour_pressures.nannoolal` live with the Example_output.txt
+  protocol (T = 298.15, Tb from UMS's own Part 1): the oracle
+  reproduces the shipped golden column bit-for-bit for all 26
+  molecules; 3 are bit-for-bit with aeroprops, 2 last-ulp (dB
+  accumulation order), and every remaining molecule plus 60 controls is
+  either identical or whitelisted with paper evidence — including
+  three UMS data-file misprints (group 7 as 0.0378487 vs the printed
+  37.8485e-3, group 48 as 0.2692470 vs 269.2471e-3, extension 303 as
+  0.519 vs Compernolle's 519.03e-3), the para pair 129 carried as 0.0,
+  Table 6 row 218 zero-filled, and the extension groups stuffed into
+  GI classes A/C/F where the paper has no parameters for them.
 
 ## Known limitations / open questions
 
@@ -147,4 +244,14 @@ sulfonate ester), and the two parameter-less interaction pairs.
   carbon as (c)-substituted.
 - **Part 3 Eq. (9)** (alcohol boiling-point correction) as printed is
   physically unrealisable and contradicts the paper's own statistics;
-  it will not be implemented.
+  it is not implemented (locked ruling, recorded in tests).
+- **Part 3 valueless groups**: 106 (imidazole-type N), 108 (thiocyanate
+  C), 118 (1,2-diketone) and 129 (para pair) are counted and then
+  refused — never silently zeroed; ID 109 is excluded entirely (its
+  paper definition names a molecule containing no nitrogen, so no
+  SMARTS can be written from the paper text, mirroring the Part 1
+  ruling).
+- **Eq. 6 extrapolation**: for T above the supplied Tb the wrapper
+  warns (Eq. 6 is a normal-boiling-point-anchored correlation) but
+  still returns the extrapolated value; the Appendix A inversion
+  `boiling_point_from_pressure` accepts any sub-critical pressure.
