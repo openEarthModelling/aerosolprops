@@ -91,6 +91,12 @@ the paper text; the method notes lose any conflict):
   A form Tb = T (L - K) / (L/8 - K) with L = log10(P/atm), K = 4.1012 +
   dB reproduces 520.85 K and is what :func:`nannoolal_vp_boiling_point`
   implements.
+- Table 4 rows 74/75 print 510.9666 (nitrite, ID 74) and 1317.4360
+  (oxime, ID 75); the small value belongs to the nitrite, consistent
+  with Part 1's independent Tb fit (494.2668 vs 1041.0851). An earlier
+  transcription of this catalogue crossed the two values; caught by the
+  independent second transcription of the gate-1 test module
+  (tests/test_nannoolal_vp_coefficients.py).
 
 References
 ----------
@@ -200,9 +206,9 @@ NANNOOLAL_VP_GROUPS = {
     90: ("CHO-(Ca) aldehyde", 0.1831130, 52),
     65: ("(C(a))-O(a)-(C(a)) aromatic ether", 0.0488839, 93),
     72: ("NO3 (nitrate ester)", 0.6035347, 13),
-    74: ("O=N-O-(C) nitrite", 1.3174360, 22),
+    74: ("O=N-O-(C) nitrite", 0.5109666, 22),
     73: ("PO(O)3 (phosphate)", 0.6620582, 9),
-    75: ("ONC (oxime)", 0.5109666, 29),
+    75: ("ONC (oxime)", 1.3174360, 29),
     76: ("C=O-O-C=O (anhydride)", 0.6813525, 11),
     79: ("O=C(O)2 (carbonate)", 0.3182350, 14),
     80: ("OCN (isocyanate)", 0.4358446, 28),
