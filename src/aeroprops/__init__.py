@@ -22,7 +22,7 @@ Method coverage for v0.1:
   planned
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
   1997) with the hydrogen-bonding extension of Compernolle et al. (2010) —
-  planned
+  implemented (see :class:`aeroprops.vapour_pressure.MyrdalYalkowsky`)
 
 Boiling-point inputs may instead come from ``thermo``'s built-in Joback
 method or from experimental data; aeroprops does not reimplement Joback.

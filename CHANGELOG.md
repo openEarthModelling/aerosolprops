@@ -8,6 +8,40 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ### Added
 
+- Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
+  1997; hydrogen-bonding extension from Compernolle et al., ACP 10,
+  6271, 2010): the third estimator method.
+  - `aeroprops.methods.myrdal_yalkowsky` (pure layer): the Eq. 2/7-12
+    coefficient literals (the paper's printed 19.1 denominators, the
+    authors' rounding of 2.303 R — kept because it is what reproduces
+    Table 1), the tau/HBN/entropy descriptors and the Eq. 12
+    log10-vapour-pressure estimator with solid/liquid branch selection.
+  - `aeroprops.vapour_pressure` (wrapper layer):
+    `myrdal_yalkowsky_descriptors` — the Eq. 8 SP3/SP2 walk (nonring,
+    nonterminal, tert-butyl centres and triple bonds excluded,
+    heteroatoms included), RING as independent ring systems
+    (connected components, not SSSR), the Eq. 9 hydrogen-bond group
+    catalogue as clean-room SMARTS with the Compernolle hydroperoxide/
+    peracid extension in the first root, all-element MW in g/mol, and
+    refusal of enols/nitrates/PAN/out-of-domain elements — plus the
+    `MyrdalYalkowsky` class routing `Tb` from Nannoolal Part 1 (the
+    default), `thermo`'s Joback (gated on `success`:
+    `Tb_estimated` holds a number even on failed fragmentation) or
+    experimental data; `Tm` defaults to the sub-cooled liquid branch
+    with a status annotation; `T > Tb` warns before extrapolating.
+  - Verification: coefficient triple-guard, all 19 Table 1 rows through
+    the pure estimator (exact at the printed two decimals) and the
+    paper's own summary statistics against the observed column
+    (AAE 0.09, max 0.39), a 67-molecule descriptor battery with
+    hand-checked ring systems and Hill formulas, convention unit tests
+    (including the ring-system-vs-SSSR contrast via `GetSSSR`, not the
+    symmetry-inflated `GetSymmSSSR`), the three Tb routes with drift
+    locks, failure paths, and a live UManSysProp oracle comparison
+    (19/19 Table 1 molecules plus 14 controls matching bit-for-bit or
+    at the last ulp; 6 whitelisted UMS deviations with paper evidence:
+    SSSR ring counts, tert-butyl centres, sulfur in the SP3 walk,
+    enols and nitrates accepted by UMS's wider tables).
+
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004; SOA extension groups from Compernolle et al., ACP 10, 6271,
   2010): the second estimator method.

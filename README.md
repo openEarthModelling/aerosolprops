@@ -24,7 +24,7 @@ papers and tests against literature values.
 | EVAPORATION | Vapour pressure | planned | Compernolle et al., [ACP 11, 9431 (2011)](https://doi.org/10.5194/acp-11-9431-2011) |
 | Nannoolal Part 1 (+ SOA extension groups) | Normal boiling point | implemented | Nannoolal et al., [FPE 226, 45 (2004)](https://doi.org/10.1016/j.fluid.2004.09.001); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
 | Nannoolal Part 3 | Vapour pressure | planned | Nannoolal et al., [FPE 269, 117 (2008)](https://doi.org/10.1016/j.fluid.2008.04.020) |
-| Myrdal–Yalkowsky (+ H-bonding extension) | Vapour pressure | planned | Myrdal & Yalkowsky, [IECR 36, 2494 (1997)](https://doi.org/10.1021/ie950242l); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
+| Myrdal–Yalkowsky (+ H-bonding extension) | Vapour pressure | implemented | Myrdal & Yalkowsky, [IECR 36, 2494 (1997)](https://doi.org/10.1021/ie950242l); Compernolle et al., [ACP 10, 6271 (2010)](https://doi.org/10.5194/acp-10-6271-2010) |
 
 Boiling points used as inputs (by Myrdal–Yalkowsky and Nannoolal Part 3) can
 come from the self-implemented Nannoolal Part 1 route, from `thermo`'s
