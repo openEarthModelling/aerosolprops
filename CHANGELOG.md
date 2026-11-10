@@ -6,6 +6,8 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-10
+
 ### Changed
 
 - Renamed the package from `aeroprops` to `aerosolprops` (import name and
@@ -17,7 +19,7 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 - Nannoolal Part 3 vapour pressure (Nannoolal, Rarey & Ramjugernath,
   FPE 269, 117-133, 2008; SOA extension groups from Compernolle et
-  al., ACP 10, 6271, 2010): the fourth and final estimator method.
+  al., ACP 10, 6271, 2010): the fifth and final estimator method.
   - `aerosolprops.methods.nannoolal_vp` (pure layer): the Eq. 6/7
     estimators (`nannoolal_vp_dB`, `nannoolal_vp_log10_vapour_pressure`,
     `nannoolal_vp_boiling_point` via the Appendix A inversion), the

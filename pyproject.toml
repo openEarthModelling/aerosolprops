@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aerosolprops"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Structure-derived pure-component properties for atmospheric organic aerosol: vapour pressures and boiling points by group contribution"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,7 +21,7 @@ keywords = [
     "thermo",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",

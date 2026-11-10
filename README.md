@@ -1,5 +1,7 @@
 # aerosolprops
 
+[![CI](https://github.com/openEarthModelling/aerosolprops/actions/workflows/ci.yml/badge.svg)](https://github.com/openEarthModelling/aerosolprops/actions/workflows/ci.yml)
+
 Structure-derived pure-component properties for atmospheric organic aerosol.
 
 `aerosolprops` is a modern successor to the pure-component property methods of
