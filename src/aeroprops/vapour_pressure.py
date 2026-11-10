@@ -56,7 +56,8 @@ from .methods.simpol1 import (
 from .structure import load_rdkit, mol_from_smiles, normalize_mol
 from .topology import fragments_excluding_bond, separate_without_atom
 
-__all__ = ["SIMPOL1", "simpol1_fragmentation"]
+__all__ = ["SIMPOL1", "simpol1_fragmentation",
+           "EVAPORATION", "evaporation_fragmentation"]
 
 #: Elements covered by the SIMPOL.1 group catalogue (paper Table 5:
 #: hydrocarbons plus O/N functionality only).
@@ -1024,4 +1025,105 @@ def evaporation_fragmentation(mol, upstream_compat=False):
         m = _evaporation_counts_upstream(mol, Chem, maps, g, nbrs, btype)
         counts = _evaporation_assemble_upstream(m)
     keep = {k: v for k, v in counts.items() if v}
+    keep.pop("1", None)  # c1 is implied; the estimator enforces it
     return dict(sorted(keep.items())), True, "OK"
+
+
+class EVAPORATION:
+    """EVAPORATION sub-cooled liquid vapour pressure (Compernolle
+    et al., ACP 11, 9431-9450, 2011).
+
+    Wraps :func:`evaporation_fragmentation` and the pure estimators of
+    :mod:`aeroprops.methods.evaporation` in the same idiom as
+    :class:`SIMPOL1`: fragmentation runs once in the constructor and
+    every estimation method returns ``None`` if it failed.
+
+    Parameters
+    ----------
+    mol : Mol, optional
+        Normalisation (including charge-form nitrate/PAN conversion)
+        is applied internally.
+    smi : str, optional
+        SMILES string, used when `mol` is not given.
+    upstream_compat : bool, optional
+        Use the UManSysProp counting convention and assembly
+        arithmetic (see :func:`evaporation_fragmentation`); default is
+        the paper-text semantics.
+
+    Attributes
+    ----------
+    counts : dict
+        Non-zero descriptor counts (empty on failure).
+    success : bool
+    status : str
+
+    Examples
+    --------
+    >>> eva = EVAPORATION(smi="CC(C)(C(=O)O)C(C(=O)O)CC(=O)O")  # MBTCA
+    >>> eva.success, eva.counts
+    (True, {'2': 8, '3': 3.0, '9': 3})
+    >>> round(eva.log10_vapour_pressure(298.15), 4)  # log10 Pa
+    -6.5127
+
+    The upstream convention (bit-for-bit the UManSysProp result,
+    here differing through the branching descriptor):
+
+    >>> up = EVAPORATION(smi="CC(C)(C)C", upstream_compat=True)
+    >>> round(up.log10_vapour_pressure(298.15), 4)
+    6.0153
+
+    The boiling point solves Eq. 13 at 1 atm (Eq. 14 basis; no Tb
+    enters the method as an input):
+
+    >>> round(EVAPORATION(smi="CC(C)(C)C").boiling_point(), 1)
+    283.6
+
+    Unsupported input fails softly:
+
+    >>> bad = EVAPORATION(smi="CCCl")
+    >>> bad.success, bad.counts, bad.vapour_pressure() is None
+    (False, {}, True)
+    """
+
+    def __init__(self, mol=None, smi=None, upstream_compat=False):
+        if mol is None:
+            mol = None if smi is None else mol_from_smiles(smi)
+        else:
+            mol = normalize_mol(mol)
+        if mol is None:
+            self.counts, self.success, self.status = \
+                {}, False, "Failed to construct mol"
+            return
+        self._upstream_compat = upstream_compat
+        self.counts, self.success, self.status = evaporation_fragmentation(
+            mol, upstream_compat=upstream_compat)
+
+    def log10_vapour_pressure(self, T=298.15):
+        """Base-10 logarithm of the vapour pressure [log10 Pa].
+
+        >>> round(EVAPORATION(smi="O=C(O)CCCCC(=O)O").log10_vapour_pressure(), 4)
+        -3.467
+        """
+        if not self.success:
+            return None
+        return evaporation_log10_vapour_pressure(
+            self.counts, T, self._upstream_compat)
+
+    def vapour_pressure(self, T=298.15):
+        """Vapour pressure [Pa]."""
+        log10p = self.log10_vapour_pressure(T)
+        return None if log10p is None else 10.0 ** log10p
+
+    def boiling_point(self):
+        """Boiling temperature [K] (p0 = 1 atm, Eq. 14 basis).
+
+        Returns ``None`` on failure or when no positive solution of
+        Eq. 13 exists.
+
+        >>> round(EVAPORATION(smi="CCO").boiling_point(), 1)
+        350.6
+        """
+        if not self.success:
+            return None
+        return evaporation_boiling_temperature(
+            self.counts, self._upstream_compat)
