@@ -8,6 +8,31 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ### Added
 
+- EVAPORATION vapour pressure (Compernolle, Ceulemans & Müller, ACP 11,
+  9431, 2011): the third estimator method.
+  - `aeroprops.methods.evaporation` (pure layer): the 40+3 coefficients
+    of paper Table 4 (27 count classes incl. the 12lin/12CL/12HB ring
+    split, intercepts, diacid factor) cross-verified against the paper's
+    independent g_k column, the A/B parameter and Eq. 14 boiling-point
+    estimators, and `evaporation_log10_vapour_pressure` (log10 Pa basis).
+    Transcription rulings recorded in tests: b20 = 1817.69 (paper) vs
+    1817.60 in the UManSysProp tree (typo there).
+  - `aeroprops.vapour_pressure` (wrapper layer):
+    `evaporation_fragmentation` with two counting conventions — the
+    paper text (default: Eq. 26 in-chain oxygen via removal
+    connectivity, branching descriptor t, per-role ring functionalities,
+    nitrate/PAN classification, footnote f) and an `upstream_compat`
+    mode reproducing UManSysProp counting bit-for-bit — plus the
+    Joback-style `EVAPORATION` class. `PriorityFragmenter` deliberately
+    not reused: the counting is overlapping/subset semantics, not a
+    SMARTS partition.
+  - Verification: paper D-value anchors (Table 5 and §6 panels), 5
+    literature boiling points, 50-molecule atom-accounting and
+    element-conservation suite, per-rule counting-semantics units, and a
+    live UManSysProp oracle gate — 26/26 Example_output molecules with
+    identical upstream-mode counts and log10 P agreement to 1e-12 (empty
+    divergence whitelist), plus 49 probe molecules locked twice against
+    recorded and live oracle counts.
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004; SOA extension groups from Compernolle et al., ACP 10, 6271,
   2010): the second estimator method.
