@@ -606,6 +606,15 @@ def nannoolal_bp_gi(counts, n):
     (None, 'missing interaction parameter (B, G)')
     >>> nannoolal_bp_gi({38: 1, 34: 1}, 20)  # ether + alcohol, n = 20
     (13.53991, 'OK')
+
+A lone member of a parameter-less class never pairs with itself
+(thiazole: one five-ring N, class R, plus aromatic S, class K - only
+the valued K-R pair contributes; two five-ring N's refuse):
+
+    >>> nannoolal_bp_gi({15: 3, 56: 1, 66: 1}, 6)
+    (-116.24666666666667, 'OK')
+    >>> nannoolal_bp_gi({15: 3, 66: 2}, 5)
+    (None, 'missing interaction parameter (R, R)')
     """
     if any(gid in NANNOOLAL_BP_EXTENSIONS for gid in counts):
         return 0.0, GI_STATUS_NO_GI
@@ -621,6 +630,8 @@ def nannoolal_bp_gi(counts, n):
         n1 = class_counts[c1]
         for c2 in letters[i:]:
             n2 = class_counts[c2]
+            if c1 == c2 and n1 < 2:
+                continue  # a single group pairs with nothing (C_i-i = 0)
             pair = (c1, c2)
             if pair not in NANNOOLAL_BP_INTERACTION_IDS:
                 continue  # not in Table 5: zero contribution
