@@ -221,6 +221,10 @@ def test_descriptor_failures(smi, status):
         assert my.status.startswith("unsupported element(s):")
     else:
         assert my.status == status
+    # thermo-style contract: attributes exist on failed objects too
+    assert my.tb_source == "experimental"  # tb was given
+    assert my.tm is None
+    assert my.sigma == 1.0
     assert my.log10_vapour_pressure() is None
     assert my.vapour_pressure() is None
 
@@ -240,5 +244,9 @@ def test_invalid_inputs(kw, status):
     my = MyrdalYalkowsky(smi="CCCCCC", **kw)
     assert not my.success
     assert my.status == status
+    # attributes exist (round-tripping the given inputs) on failures
+    assert my.tb_source == "experimental"
+    assert my.tm == kw.get("tm")
+    assert my.sigma == kw.get("sigma", 1.0)
     assert my.log10_vapour_pressure() is None
     assert my.vapour_pressure() is None

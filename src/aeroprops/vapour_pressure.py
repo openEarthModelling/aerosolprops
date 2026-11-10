@@ -684,6 +684,11 @@ class MyrdalYalkowsky:
 
     def __init__(self, mol=None, smi=None, tb=None, tb_source="nannoolal",
                  tm=None, sigma=1.0):
+        # set on every path (including failures): the attributes of a
+        # thermo-style wrapper always exist, never AttributeError
+        self.tb_source = "experimental" if tb is not None else tb_source
+        self.tm = tm
+        self.sigma = sigma
         if mol is None:
             mol = None if smi is None else mol_from_smiles(smi)
         else:
@@ -703,9 +708,6 @@ class MyrdalYalkowsky:
         if tb is not None and self.tb is None:
             self.success, self.status = False, "invalid experimental Tb"
             return
-        self.tb_source = "experimental" if tb is not None else tb_source
-        self.tm = tm
-        self.sigma = sigma
         if not self.success:
             return
         if tm is not None and not tm > 0.0:
