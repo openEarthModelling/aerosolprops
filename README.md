@@ -34,17 +34,19 @@ reimplement Joback.
 ## Installation
 
 ```bash
-pip install aeroprops[rdkit]   # with RDKit structure input
-pip install aeroprops         # counts-dictionary API only (no RDKit)
+pip install aeroprops
 ```
+
+RDKit and `thermo` are required dependencies.
 
 ## Design notes
 
 - **Units are strictly SI** (Pa, K, mol); property failures return `None`.
-- **RDKit is optional.** All estimators ultimately consume group-count
-  dictionaries, so the library works (and is tested in CI) without RDKit;
-  with RDKit, SMARTS catalogues and the normalising structure entry point
-  (`aeroprops.structure`) are available.
+- **RDKit is the structure engine and a required dependency.** It is
+  imported lazily, and estimators ultimately consume group-count
+  dictionaries — the same interface `thermo` uses for its own
+  RDKit-optional group-contribution methods — so pieces remain extractable
+  upstream.
 - **No molecular descriptors.** Every method needs only 2D graph quantities:
   SMARTS substructure counts, ring perception, composition, and a few
   connectivity queries. No fingerprints, no 3D, no descriptor packages.
@@ -71,12 +73,11 @@ no code or data files are copied from it.
 ```bash
 uv venv && uv pip install -e ".[test,docs]"
 pytest                        # unit tests + doctests
-pytest -o addopts= -m "not rdkit" tests   # the no-RDKit code path
 mkdocs serve                  # documentation
 ```
 
 CI runs the full test matrix (with doctests) on Linux/macOS/Windows for
-Python 3.9–3.14, plus a dedicated job without RDKit and a strict docs build.
+Python 3.9–3.14, plus a strict docs build.
 
 ## License
 

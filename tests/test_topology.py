@@ -1,11 +1,6 @@
 # SPDX-License-Identifier: MIT
 """Tests for aeroprops.topology (graph primitives over RDKit built-ins)."""
 
-import pytest
-
-pytest.importorskip("rdkit")
-pytestmark = pytest.mark.rdkit
-
 from aeroprops.structure import mol_from_smiles
 from aeroprops.topology import fragments_excluding_bond, ring_arc_distance, separate_without_atom
 

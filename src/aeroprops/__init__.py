@@ -22,9 +22,11 @@ Planned method coverage for v0.1:
 Boiling-point inputs may instead come from ``thermo``'s built-in Joback
 method or from experimental data; aeroprops does not reimplement Joback.
 
-RDKit is an optional dependency: importing this package pulls in neither
-RDKit nor ``thermo``'s group-contribution machinery, and every estimator
-consumes plain group-count dictionaries on its no-RDKit face.
+RDKit is a required dependency but is imported lazily: importing this
+package pulls in neither RDKit nor ``thermo``'s group-contribution
+machinery. Estimators consume plain group-count dictionaries — the same
+interface ``thermo`` uses for its own RDKit-optional group-contribution
+methods — so pieces remain extractable upstream.
 """
 
 __version__ = "0.1.0.dev0"

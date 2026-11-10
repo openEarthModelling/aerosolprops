@@ -24,19 +24,6 @@ jobs:
       - name: Run tests (unit + doctests)
         run: python -m pytest
 
-  no-rdkit:
-    name: pytest without RDKit (counts-dict code path)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install (no rdkit extra)
-        run: python -m pip install -e . pytest
-      - name: Run non-RDKit tests only
-        run: python -m pytest -o addopts= -m "not rdkit" tests
-
   docs:
     name: mkdocs build (strict)
     runs-on: ubuntu-latest

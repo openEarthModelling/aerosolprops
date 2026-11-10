@@ -3,9 +3,6 @@
 
 import pytest
 
-pytest.importorskip("rdkit")
-pytestmark = pytest.mark.rdkit
-
 from aeroprops.structure import (
     canonical_smiles,
     element_counts,

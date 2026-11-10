@@ -37,11 +37,11 @@ classifiers = [
 ]
 dependencies = [
     "thermo>=0.6.1",
+    "rdkit>=2023.9",
 ]
 
 [project.optional-dependencies]
-rdkit = ["rdkit>=2023.9"]
-test = ["pytest>=7.0", "rdkit>=2023.9"]
+test = ["pytest>=7.0"]
 docs = ["mkdocs>=1.5", "mkdocs-material>=9.0"]
 
 # [project.urls]
@@ -54,6 +54,3 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "--doctest-modules -q"
 testpaths = ["src", "tests"]
-markers = [
-    "rdkit: tests that require RDKit (deselect with -m 'not rdkit')",
-]

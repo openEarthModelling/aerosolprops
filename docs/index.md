@@ -27,8 +27,9 @@ not reimplement Joback.
 ## Conventions
 
 - Strict SI units; failures return `None`.
-- RDKit is optional: estimators consume group-count dictionaries, so the
-  library works without it (and CI tests that path).
+- RDKit is the structure engine (required dependency, imported lazily).
+  Estimators consume group-count dictionaries — the interface `thermo`
+  uses for its own RDKit-optional group-contribution methods.
 - Coefficients are entered from the published papers; SMARTS catalogues are
   authored from the papers' group definitions. UManSysProp is used only as a
   behavioural test oracle during development.

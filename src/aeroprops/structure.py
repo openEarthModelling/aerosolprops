@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: MIT
 """Structure input layer: RDKit loading, normalisation, and composition.
 
-This module is the only place that touches RDKit. It follows the ``thermo``
-convention that RDKit is an optional dependency: imports are attempted once
-and cached, and every public function degrades gracefully (returns ``None``)
-when RDKit is missing. All property estimators in aeroprops ultimately
-consume group-count dictionaries, so the library remains fully usable
-without RDKit.
+This module is the only place that touches RDKit. RDKit is a required
+dependency of aeroprops, but it is still imported lazily (attempted once
+and cached) so that ``import aeroprops`` itself stays lightweight; public
+functions additionally return ``None`` rather than raise if RDKit is
+missing from a broken installation.
 """
 
 _rdkit_modules = None
