@@ -279,3 +279,189 @@ def test_out_of_scope_molecules_fail_cleanly():
     counts, n, ok, status = _frag("c1cc[n+]([O-])cc1")
     assert not ok and "unclaimed atom" in status
     assert counts == {15: 5, 67: 1} and n == 7
+
+
+# --- Gate 7: the NannoolalVP wrapper ------------------------------------
+from aeroprops.vapour_pressure import NannoolalVP  # noqa: E402
+
+
+def test_experimental_tb_passthrough():
+    vp = NannoolalVP(smi="CC1=CCC2CC1C2(C)C", tb=429.0)
+    assert vp.success and vp.status == "OK"
+    assert vp.tb == 429.0 and vp.tb_source == "experimental"
+    assert vp.db == pytest.approx(0.1078596, abs=5e-8)
+    assert vp.log10_vapour_pressure(388.15) == (
+        nannoolal_vp_log10_vapour_pressure(
+            vp.counts, vp.n, 388.15, 429.0
+        )
+    )
+    assert vp.vapour_pressure(388.15) == 10.0 ** vp.log10_vapour_pressure(
+        388.15
+    )
+
+
+def test_nannoolal_route_default():
+    from aeroprops.boiling_point import NannoolalBP
+
+    vp = NannoolalVP(smi="CCO")
+    assert vp.success, vp.status
+    assert vp.tb_source == "nannoolal"
+    nnp = NannoolalBP(smi="CCO")
+    assert vp.tb == nnp.boiling_point()
+    assert vp.log10_vapour_pressure(298.15) == (
+        nannoolal_vp_log10_vapour_pressure(
+            vp.counts, vp.n, 298.15, vp.tb
+        )
+    )
+
+
+def test_nannoolal_route_refused():
+    """Part 1's own refusal (Table 5 row 153, phenol-ketone B-G pair)
+    propagates through the default Tb route."""
+    vp = NannoolalVP(smi="CC(=O)c1ccc(O)cc1")
+    assert not vp.success
+    assert vp.tb is None
+    assert vp.status == (
+        "Nannoolal Tb refused: refused: missing interaction parameter"
+    )
+    # a Part 3 valueless group (118 1,2-diketone) is not a Tb-route
+    # refusal: Part 1 valued it. With an explicit Tb the wrapper
+    # succeeds, the slope refuses, and the estimator returns None with
+    # the refusal recorded in status.
+    vp = NannoolalVP(smi="CC(=O)C(C)=O", tb=400.0)
+    assert vp.success and vp.status == "OK"
+    assert vp.db is None
+    assert vp.db_status == (
+        "no dB parameter for group 118 (O=C-C=O (1,2-diketone))"
+    )
+    assert vp.log10_vapour_pressure(300.0) is None
+    assert vp.status == "refused: " + vp.db_status
+
+
+def test_joback_route():
+    from thermo import Joback
+
+    vp = NannoolalVP(smi="CCCCCC", tb_source="joback")
+    assert vp.success, vp.status
+    assert vp.tb_source == "joback"
+    assert vp.tb == Joback("CCCCCC").Tb_estimated
+    assert round(vp.tb, 2) == 336.88  # drift lock (thermo 0.6.1)
+
+
+def test_joback_route_from_mol_object():
+    """Without `smi` the route derives canonical SMILES from the mol."""
+    from aeroprops.structure import normalize_mol
+
+    vp = NannoolalVP(
+        mol=normalize_mol(mol_from_smiles("CCCCCC")), tb_source="joback"
+    )
+    assert vp.success, vp.status
+    assert round(vp.tb, 2) == 336.88
+
+
+def test_joback_route_gates_on_success():
+    """thermo's Joback returns a numeric Tb_estimated even when its
+    fragmentation failed (peroxyacetyl nitrate: 325.3 with success
+    False); the route must refuse, not propagate the number. (Nitric
+    acid, the M-Y test's example, cannot serve here: Part 3's own
+    fragmentation refuses it before the Tb route runs.)"""
+    vp = NannoolalVP(smi="CC(=O)OON(=O)=O", tb_source="joback")
+    assert not vp.success
+    assert vp.tb is None
+    assert vp.status == "Joback Tb unavailable (thermo refused)"
+
+
+def test_experimental_route_without_tb_refused():
+    vp = NannoolalVP(smi="CCCCCC", tb_source="experimental")
+    assert not vp.success
+    assert vp.tb is None
+    assert vp.status == "experimental Tb required: pass tb=..."
+
+
+def test_unknown_tb_source_refused():
+    vp = NannoolalVP(smi="CCCCCC", tb_source="bogus")
+    assert not vp.success
+    assert vp.status == "unknown tb_source: 'bogus'"
+
+
+def test_extension_groups_take_the_no_gi_branch():
+    """Compernolle extension groups estimate without the GI term and
+    are flagged in gi_status, never silently dropped."""
+    from aeroprops.methods.nannoolal_vp import GI_STATUS_NO_GI
+
+    for smi, gid in [
+        ("CC(C)(C)OO", 301),
+        ("CC(=O)OO", 302),
+        ("CC(=O)OON(=O)=O", 303),
+    ]:
+        vp = NannoolalVP(smi=smi, tb=350.0)
+        assert vp.success, (smi, vp.status)
+        assert gid in vp.counts
+        assert vp.gi_status == GI_STATUS_NO_GI
+        assert vp.db is not None
+        assert vp.log10_vapour_pressure(298.15) is not None
+
+
+def test_warning_above_boiling_point():
+    vp = NannoolalVP(smi="CCCCCC", tb_source="joback")
+    with pytest.warns(UserWarning, match="exceeds Tb"):
+        assert vp.log10_vapour_pressure(400.0) is not None
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        vp.log10_vapour_pressure(300.0)
+        vp.log10_vapour_pressure(vp.tb)
+
+
+def test_invalid_temperature_and_pressure_inputs():
+    vp = NannoolalVP(smi="CCCCCC", tb_source="joback")
+    assert vp.log10_vapour_pressure(0.0) is None
+    assert vp.log10_vapour_pressure(-50.0) is None
+    assert vp.vapour_pressure(-50.0) is None
+    assert vp.boiling_point_from_pressure(0.0, 1e5) is None
+    assert vp.boiling_point_from_pressure(300.0, 0.0) is None
+
+
+@pytest.mark.parametrize(
+    "smi,status",
+    [
+        ("this is not a smiles", "Failed to construct mol"),
+        ("C[Si](C)(C)C", None),  # startswith "unsupported element(s):"
+        ("c1cc[n+]([O-])cc1", None),  # startswith "unclaimed atom"
+    ],
+    ids=["bad-smiles", "silicon", "n-oxide"],
+)
+def test_construction_failures_set_all_attributes(smi, status):
+    vp = NannoolalVP(smi=smi, tb=400.0)
+    assert not vp.success
+    if status is None:
+        assert vp.status.startswith(("unsupported element(s)", "unclaimed"))
+    else:
+        assert vp.status == status
+    # thermo-style contract: every attribute exists on failed objects
+    assert vp.tb_source == "experimental"  # tb was given
+    assert vp.db is None and vp.db_status is None and vp.gi_status is None
+    assert vp.log10_vapour_pressure() is None
+    assert vp.vapour_pressure() is None
+    assert vp.boiling_point_from_pressure(300.0, 1e3) is None
+
+
+@pytest.mark.parametrize(
+    "tb", [0.0, -5.0], ids=["tb-zero", "tb-negative"]
+)
+def test_invalid_experimental_tb(tb):
+    vp = NannoolalVP(smi="CCCCCC", tb=tb)
+    assert not vp.success
+    assert vp.status == "invalid experimental Tb"
+    assert vp.tb is None
+    assert vp.log10_vapour_pressure() is None
+
+
+def test_fragmentation_failure_keeps_counts_partial():
+    """Unclaimed-atom failures return the partial counts (the Part 1
+    wrapper contract), and the estimator still refuses."""
+    vp = NannoolalVP(smi="c1cc[n+]([O-])cc1")
+    assert not vp.success
+    assert vp.counts == {15: 5, 67: 1}
+    assert vp.log10_vapour_pressure() is None
