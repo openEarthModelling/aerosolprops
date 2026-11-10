@@ -623,6 +623,41 @@ def _my_joback_boiling_point(smi):
         return None
 
 
+def _resolve_normal_boiling_point(mol, smi, tb_source):
+    """Resolve a normal boiling point [K] from the selected route.
+
+    Shared Tb routing of the *input* vapour-pressure methods (Myrdal-
+    Yalkowsky Eq. 12, Nannoolal Part 3 Eq. 6): an experimental value
+    must be passed in, or the estimate comes from Nannoolal Part 1
+    (:class:`aeroprops.boiling_point.NannoolalBP`, the default route)
+    or from ``thermo``'s Joback method (aeroprops does not reimplement
+    Joback).
+
+    Returns ``(tb, error)``: ``tb`` is ``None`` exactly when ``error``
+    names why the route refused (the string the wrapper layer stores in
+    its ``status``); on success the error is ``None``.
+    """
+    if tb_source == "experimental":
+        return None, "experimental Tb required: pass tb=..."
+    if tb_source == "joback":
+        if smi is None:
+            loaded = load_rdkit()
+            smi = loaded[0].MolToSmiles(mol)
+        tb = _my_joback_boiling_point(smi)
+        if tb is None:
+            return None, "Joback Tb unavailable (thermo refused)"
+        return tb, None
+    if tb_source == "nannoolal":
+        from .boiling_point import NannoolalBP
+
+        nnp = NannoolalBP(mol=mol)
+        tb = nnp.boiling_point()
+        if tb is None:
+            return None, "Nannoolal Tb refused: " + nnp.status
+        return tb, None
+    return None, "unknown tb_source: %r" % (tb_source,)
+
+
 class MyrdalYalkowsky:
     """Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36,
     2494, 1997), with the hydrogen-bond extension of Compernolle et al.
@@ -735,27 +770,12 @@ class MyrdalYalkowsky:
     def _resolve_tb(self, smi):
         """Fill ``self.tb`` from the selected route; sets the failure
         status and returns ``None`` when the route refuses."""
-        if self.tb_source == "experimental":
-            self.status = "experimental Tb required: pass tb=..."
-            return None
-        if self.tb_source == "joback":
-            if smi is None:
-                loaded = load_rdkit()
-                smi = loaded[0].MolToSmiles(self.mol)
-            tb = _my_joback_boiling_point(smi)
-            if tb is None:
-                self.status = "Joback Tb unavailable (thermo refused)"
-            return tb
-        if self.tb_source == "nannoolal":
-            from .boiling_point import NannoolalBP
-
-            nnp = NannoolalBP(mol=self.mol)
-            tb = nnp.boiling_point()
-            if tb is None:
-                self.status = "Nannoolal Tb refused: " + nnp.status
-            return tb
-        self.status = "unknown tb_source: %r" % (self.tb_source,)
-        return None
+        tb, error = _resolve_normal_boiling_point(
+            self.mol, smi, self.tb_source
+        )
+        if error is not None:
+            self.status = error
+        return tb
 
     def log10_vapour_pressure(self, T=298.15):
         """Base-10 logarithm of the vapour pressure [log10 Pa].
