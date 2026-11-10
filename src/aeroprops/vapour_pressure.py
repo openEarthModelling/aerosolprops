@@ -67,7 +67,11 @@ from .structure import (
     molecular_weight,
     normalize_mol,
 )
-from .topology import fragments_excluding_bond, separate_without_atom
+from .topology import (
+    fragments_excluding_bond,
+    ring_arc_distance,
+    separate_without_atom,
+)
 
 __all__ = [
     "SIMPOL1",
@@ -76,6 +80,8 @@ __all__ = [
     "simpol1_fragmentation",
     "EVAPORATION",
     "evaporation_fragmentation",
+    "NANNOOLAL_VP_SMARTS",
+    "nannoolal_vp_fragmentation",
 ]
 
 #: Elements covered by the SIMPOL.1 group catalogue (paper Table 5:
@@ -1556,3 +1562,470 @@ class EVAPORATION:
             return None
         return evaporation_boiling_temperature(
             self.counts, self._upstream_compat)
+
+
+# ---------------------------------------------------------------------------
+# Nannoolal Part 3 vapour pressure: fragmentation layer
+# ---------------------------------------------------------------------------
+# Same fragmenter engine as the Part 1 boiling-point module
+# (aeroprops.boiling_point): the priority-claim partition of
+# fragmentation.PriorityFragmenter with a Part 3 catalogue. The SMARTS
+# patterns are the ones authored clean-room from the Part 1/Part 3 group
+# definitions (both papers share the group system); the Part 3 deltas
+# are called out inline and are exactly three:
+#
+# * 118 is a *main* group here (1,2-diketone, PR 1, valueless - "no
+#   estimation possible"): Part 1 used ID 118 for the conjugation
+#   correction, which Part 3 renumbers to 134;
+# * aromatic bridge carbons split off the fused family: 18 keeps the
+#   three-aromatic-bond (fused) atoms, new 214 claims the biphenyl-style
+#   bridge carbon (two aromatic bonds + one single bond to an aromatic
+#   carbon);
+# * priorities are Part 3's own (drawn from methods.nannoolal_vp
+#   automatically below).
+
+from .fragmentation import PriorityFragmenter
+from .methods.nannoolal_vp import NANNOOLAL_VP_GROUPS
+
+#: SMARTS catalogue: group ID -> (pattern, claim); see the Part 1
+#: catalogue (aeroprops.boiling_point.NANNOOLAL_BP_SMARTS) for the
+#: pattern-by-pattern rationale. Groups the paper defines without a dB
+#: value (106 imidazole, 108 thiocyanate, 118 1,2-diketone) are kept:
+#: they are counted, then refused at estimation.
+NANNOOLAL_VP_SMARTS = {
+    # --- Carbon skeleton, chain (paper Table 1) ----------------------
+    1: ("[CH3;!R;!$([CH3]~[a]);!$([CH3]~[#7,#8,#9,#17])]", (0,)),
+    2: ("[CH3;!R;$([CH3]~[#7,#8,#9,#17])]", (0,)),
+    3: ("[CH3;!R;$([CH3]~[a])]", (0,)),
+    4: ("[CH2;!R]", (0,)),
+    5: ("[CH;!R]", (0,)),
+    6: ("[C;H0;!R]", (0,)),
+    7: ("[C;!R;$([C]~[#7,#8,#9,#17])]", (0,)),
+    8: ("[C;!R;$([C]~[c])]", (0,)),
+    9: ("[CH2;R]", (0,)),
+    10: ("[CH;R]", (0,)),
+    11: ("[C;H0;R]", (0,)),
+    12: ("[$([C;R]-!@[#7,#8]),$([C;R]~[#9,#17])]", (0,)),
+    13: ("[$([C;R]-@[#7,#8])]", (0,)),
+    14: ("[C;R;$([C]~[c])]", (0,)),
+    # Aromatic carbons; the Part 3 split: 18 requires three *aromatic*
+    # bonds (fused, naphthalene), 214 the bridge carbon of biphenyl /
+    # m-terphenyl (two aromatic bonds + single bond to an aromatic C).
+    15: ("[cH]", (0,)),
+    16: ("[cH0;!$([cH0]~[#7,#8,#9,#17])]", (0,)),
+    17: ("[cH0;$([cH0]~[#7,#8,#9,#17])]", (0,)),
+    18: ("[cH0](:[c])(:[c]):[c]", (0,)),
+    214: ("[cH0](:[c])(:[c])-[c]", (0,)),
+    # --- Halogens (family patterns verified against Tables 15c/15h) ---
+    19: ("[F][C]", (0,)),
+    20: ("[F;$([F][C]=[C])]", (0,)),
+    21: ("[F;$([F][C;H0]~[F])]", (0,)),
+    102: ("[F;$([F][C;H0]~[Cl])]", (0,)),
+    22: ("[F;$([F][C;H1]([F,Cl])[!F,!Cl])]", (0,)),
+    23: ("[F;$([F][C;H1]([F,Cl])[F,Cl])]", (0,)),
+    25: ("[Cl][C]", (0,)),
+    26: ("[Cl;$([Cl][C]~[F,Cl])]", (0,)),
+    27: ("[Cl;$([Cl][C]([F,Cl])[F,Cl])]", (0,)),
+    28: ("[Cl][c]", (0,)),
+    29: ("[Cl;$([Cl][C]=[C])]", (0,)),
+    30: ("[Br][C]", (0,)),
+    31: ("[Br][c]", (0,)),
+    32: ("[I][#6]", (0,)),
+    # --- Oxygen ------------------------------------------------------
+    # 36 = OH short chain (<C5), applied by post-processing below; the
+    # pattern claims any remaining alcohol O (methanol).
+    33: ("[OX2H;$([OX2H][C;H0])]", (0,)),
+    34: ("[OX2H;$([OX2H][C;H1]([#6])[#6])]", (0,)),
+    35: ("[OX2H;$([OX2H][C;H2][#6])]", (0,)),
+    36: ("[OX2H;$([OX2H][C])]", (0,)),
+    37: ("[OX2H;$([OX2H][c])]", (0,)),
+    38: ("[OX2;$([OX2]([#6])[#6])]", (0,)),
+    39: ("[OX2;r3]([C;r3])[C;r3]", (0, 1, 2)),
+    44: ("[CX3](=[OX1])([OX2H1])[#6]", (0, 1, 2)),
+    45: ("[CX3](=[OX1])([OX2;!R][#6])[#6]", (0, 1, 2)),
+    47: ("[CX3](=[OX1])([OX2;R;$([OX2]~[#6;!$([#6]=[OX1])])])[#6]",
+         (0, 1, 2)),
+    46: ("[CX3;H1](=[OX1])([OX2][#6])", (0, 1, 2)),
+    48: ("[NX3;H0]([#6])([#6])[CX3](=[OX1])", (0, 3, 4)),
+    49: ("[NX3;H1]([#6])[CX3](=[OX1])", (0, 2, 3)),
+    50: ("[NX3;H2][CX3](=[OX1])", (0, 1, 2)),
+    99: ("[CX3](=[OX1])([NX3])[OX2]", (0, 1, 2, 3)),
+    100: ("[CX3](=[OX1])([NX3])[NX3]", (0, 1, 2, 3)),
+    51: ("[CX3](=[OX1])([C])[C]", (0, 1)),
+    92: ("[CX3](=[OX1])([c])[#6]", (0, 1)),
+    52: ("[CX3;H1](=[OX1])([C])", (0, 1)),
+    90: ("[CX3;H1](=[OX1])([c])", (0, 1)),
+    94: ("[#6][OX2][OX2][#6]", (1, 2)),
+    75: ("[N;X2]([OX2H1])=[#6]", (0, 1)),
+    77: ("[CX3](=[OX1])([Cl])[#6]", (0, 1)),
+    76: ("[CX3](=[OX1])([OX2;!R][CX3](=[OX1]))", (0, 1, 2, 3, 4)),
+    96: ("[CX3](=[OX1])([OX2;R][CX3](=[OX1]))", (0, 1, 2, 3, 4)),
+    79: ("[CX3](=[OX1])([OX2;!R][#6])([OX2][#6])", (0, 1, 2, 4)),
+    103: ("[CX3](=[OX1])([OX2;R])([OX2;R])", (0, 1, 2, 3)),
+    72: ("[#6][OX2][N+](=[OX1])([OX1-])", (1, 2, 3, 4)),
+    74: ("[#6][OX2][N;X2](=[OX1])", (1, 2, 3)),
+    80: ("[#6][N;X2]=[CX2]=[OX1]", (1, 2, 3)),
+    65: ("[o](:[c]):[c]", (0,)),
+    115: ("[o;r5]~[n;r5]", (0, 1)),
+    # Part 3 main group 118: the 1,2-diketone (O=C-C=O, 2,3-butanedione
+    # example; PR 1 claims before every carbonyl family). Valueless:
+    # counted, then refused ("no estimation possible").
+    118: ("[CX3](=[OX1])-[CX3](=[OX1])", (0, 1, 2, 3)),
+    # Compernolle (2010) Table 3 extensions (engine-local order below:
+    # only 302-before-301 is load-bearing).
+    301: ("[OX2H1][OX2][#6]", (0, 1)),
+    302: ("[OX2H1][OX2][CX3](=[OX1])", (0, 1, 2, 3)),
+    303: ("[#6][CX3](=[OX1])([OX2][OX2][N+](=[OX1])([OX1-]))",
+          (1, 2, 3, 4, 5, 6, 7)),
+    # --- Nitrogen ----------------------------------------------------
+    # 97 = cyclic secondary amine (Part 3's own revision of the Table 1
+    # text; morpholine/pyrrolidine examples). 106 (imidazole) and 108
+    # (thiocyanate) are valueless: counted, then refused.
+    40: ("[NX3;H2][#6]", (0,)),
+    41: ("[NX3;H2][c]", (0,)),
+    42: ("[#7X3;H1;!R]([#6])[#6]", (0,)),
+    97: ("[#7X3;H1;R]([#6;R])[#6;R]", (0,)),
+    43: ("[NX3;H0]([#6])([#6])[#6]", (0,)),
+    101: ("[N+;X4;H0]([#6])([#6])([#6])[#6]", (0,)),
+    66: ("[n;r5;H0]", (0,)),
+    67: ("[n;r6;H0]", (0,)),
+    57: ("[#6][CX2]#[NX1]", (1, 2)),
+    108: ("[#16][CX2]#[NX1]", (1, 2)),
+    111: ("[#7][CX2]#[NX1]", (1, 2)),
+    91: ("[NX2]=[#6]", (0,)),
+    68: ("[C][N+](=[OX1])([OX1-])", (1, 2, 3)),
+    69: ("[c][N+](=[OX1])([OX1-])", (1, 2, 3)),
+    106: ("[n;r5]1[c;r5][n;r5][c;r5][c;r5]1", (0, 1, 2, 3, 4)),
+    # --- Sulfur ------------------------------------------------------
+    53: ("[SX2H1][#6]", (0,)),
+    54: ("[SX2]([#6])[#6]", (0,)),
+    55: ("[#6][SX2][SX2][#6]", (1, 2)),
+    56: ("[s]", (0,)),
+    82: ("[SX4](=[OX1])(=[OX1])([#6])[#6]", (0, 1, 2)),
+    104: ("[SX4](=[OX1])(=[OX1])([OX2][#6])([OX2][#6])", (0, 1, 2, 3, 5)),
+    105: ("[SX4](=[OX1])(=[OX1])([NX3])[#6]", (0, 1, 2)),
+    107: ("[S+;X3]([OX1-])([#6])[#6]", (0, 1)),
+    # --- Unsaturated carbon (bond-anchored) --------------------------
+    87: ("[C]=[C]=[C]", (0, 1, 2)),
+    88: ("[C;R]=[C;R][C;R]=[C;R]", (0, 1, 2, 3)),
+    89: ("[C;!R]=[C;!R][C;!R]=[C;!R]", (0, 1, 2, 3)),
+    95: ("[C;X2]#[C;X2][C;X2]#[C;X2]", (0, 1, 2, 3)),
+    64: ("[CH1]#[C]", (0, 1)),
+    63: ("[C]#[C]", (0, 1)),
+    61: ("[CH2]=[C]", (0, 1)),
+    60: ("[$([C]~[#7,#8,#9,#17]),$([C]=[C]~[#7,#8,#9,#17]);!R]"
+         "=[C;!R]", (0, 1)),
+    59: ("[$([C]~[c]),$([C]=[C]~[c]);!R]=[C;!R]", (0, 1)),
+    58: ("[C;!R;X2,X3]=[C;!R;X2,X3]", (0, 1)),
+    62: ("[C;R]=[C;R]", (0, 1)),
+}
+
+#: Engine-local claiming order for the extension groups (no priority
+#: numbers exist for them); identical to the Part 1 layer's.
+NANNOOLAL_VP_EXTENSION_PRIORITIES = {303: 1, 302: 2, 301: 3}
+
+#: Elements the aeroprops catalogue parameterises (same scope decision
+#: as the Part 1 layer: the Si/Ge/Sn/P/As/Se/B/Al families 70-93, 113,
+#: 116, 117 and the Si-halogen correction 217 stay untranscribed).
+NANNOOLAL_VP_ELEMENTS = frozenset("C N O S F Cl Br I".split())
+
+_NVP_ENGINE = None
+
+
+def _nannoolal_vp_engine():
+    """Build (once) the priority fragmenter for the Part 3 catalogue."""
+    global _NVP_ENGINE
+    if _NVP_ENGINE is None:
+        catalogue = {}
+        for gid, (smarts, claim) in NANNOOLAL_VP_SMARTS.items():
+            priority = NANNOOLAL_VP_GROUPS[gid][2]
+            if priority is None:
+                priority = NANNOOLAL_VP_EXTENSION_PRIORITIES[gid]
+            catalogue[gid] = {
+                "smarts": smarts, "priority": priority, "claim": claim,
+            }
+        _NVP_ENGINE = PriorityFragmenter(catalogue)
+    return _NVP_ENGINE
+
+
+#: Carbonyl groups whose acyl neighbours decide corrections 134/119/120.
+#: Part 3 renumbers Part 1's conjugation correction 118 -> 134; the
+#: 1,2-diketone itself is main group 118 (refused, never corrected).
+_NVP_HO_CONJUGATION_GIDS = (44, 45, 46, 47, 51, 52, 90, 92)
+_NVP_HALO_CONJUGATION_GIDS = (44, 45, 46, 47, 48, 49, 50, 51, 52, 77, 90, 92)
+
+
+def _nvp_carbonyl_carbon(mol, claim):
+    """Index of the C=O carbon inside a carbonyl group's claim tuple."""
+    for idx in claim:
+        atom = mol.GetAtomWithIdx(idx)
+        if atom.GetSymbol() != "C":
+            continue
+        for bond in atom.GetBonds():
+            other = bond.GetOtherAtom(atom)
+            if other.GetSymbol() == "O" and bond.GetBondTypeAsDouble() == 2.0:
+                return idx
+    return None
+
+
+def _nvp_halogen_count(atom):
+    """Number of directly bonded fluorine/chlorine atoms."""
+    return sum(
+        1 for nb in atom.GetNeighbors() if nb.GetSymbol() in ("F", "Cl")
+    )
+
+
+def _nvp_carbon_neighbours(atom):
+    return [nb for nb in atom.GetNeighbors() if nb.GetSymbol() == "C"]
+
+
+def _nvp_is_sp3(atom):
+    """True when every bond of `atom` is a single non-aromatic bond."""
+    return not atom.GetIsAromatic() and all(
+        bond.GetBondTypeAsDouble() == 1.0 for bond in atom.GetBonds()
+    )
+
+
+def _nvp_carbonyl_corrections(mol, assignments, corrections):
+    """Corrections 134/119/120: conjugated and halo-substituted carbonyls.
+
+    134 - a carbonyl (acid, ester, lactone, ketone, aldehyde) whose acyl
+           carbon neighbour is sp2/aromatic (Part 3's renumbering of the
+           Part 1 correction 118; paper Table 2, benzaldehyde example).
+    119 - a carbonyl with one acyl neighbour carrying two or more F/Cl.
+    120 - a carbonyl with two or more such neighbours (mutually
+          exclusive with 119, paper Table 15c).
+    """
+    for gid in _NVP_HO_CONJUGATION_GIDS:
+        for claim in assignments.get(gid, ()):
+            cx = _nvp_carbonyl_carbon(mol, claim)
+            if cx is None:
+                continue
+            for nb in mol.GetAtomWithIdx(cx).GetNeighbors():
+                if nb.GetIdx() in claim and nb.GetSymbol() == "O":
+                    continue
+                if nb.GetIsAromatic() or any(
+                    b.GetBondTypeAsDouble() == 2.0 for b in nb.GetBonds()
+                ):
+                    corrections[134] = corrections.get(134, 0) + 1
+                    break
+    for gid in _NVP_HALO_CONJUGATION_GIDS:
+        for claim in assignments.get(gid, ()):
+            cx = _nvp_carbonyl_carbon(mol, claim)
+            if cx is None:
+                continue
+            halo_carbons = sum(
+                1
+                for nb in mol.GetAtomWithIdx(cx).GetNeighbors()
+                if nb.GetSymbol() == "C" and _nvp_halogen_count(nb) >= 2
+            )
+            if halo_carbons >= 2:
+                corrections[120] = corrections.get(120, 0) + 1
+            elif halo_carbons == 1:
+                corrections[119] = corrections.get(119, 0) + 1
+
+
+def _nvp_halogen_carbon_corrections(mol, corrections):
+    """Corrections 121/122: heavily halogenated carbon atoms.
+
+    121 - a carbon with three or more F/Cl neighbours (per carbon).
+    122 - a secondary carbon with exactly two F/Cl neighbours.
+    """
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() != "C":
+            continue
+        halo = _nvp_halogen_count(atom)
+        if halo >= 3:
+            corrections[121] = corrections.get(121, 0) + 1
+        elif halo == 2 and len(_nvp_carbon_neighbours(atom)) == 2:
+            corrections[122] = corrections.get(122, 0) + 1
+
+
+def _nvp_steric_corrections(mol, corrections):
+    """Corrections 130-133: crowded quaternary carbons and C-C bonds.
+
+    130 - a carbon with four carbon neighbours at least one of which is
+          aromatic or double-bonded (tert-butylbenzene crowding).
+    131/132/133 - per single C(sp3)-C(sp3) bond, by the number of
+          further carbon neighbours of each endpoint: 2-2, 3-2, 3-3.
+          Ring bonds qualify (ethyl bornyl ether's 132 sits on the
+          bornane bridge bond).
+    """
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() != "C":
+            continue
+        nbs = _nvp_carbon_neighbours(atom)
+        if len(nbs) != 4:
+            continue
+        if any(
+            nb.GetIsAromatic()
+            or any(b.GetBondTypeAsDouble() == 2.0 for b in nb.GetBonds())
+            for nb in nbs
+        ):
+            corrections[130] = corrections.get(130, 0) + 1
+    seen_bonds = set()
+    for bond in mol.GetBonds():
+        a1, a2 = bond.GetBeginAtom(), bond.GetEndAtom()
+        key = tuple(sorted((a1.GetIdx(), a2.GetIdx())))
+        if key in seen_bonds:
+            continue
+        seen_bonds.add(key)
+        if (
+            a1.GetSymbol() != "C"
+            or a2.GetSymbol() != "C"
+            or bond.GetBondTypeAsDouble() != 1.0
+            or not (_nvp_is_sp3(a1) and _nvp_is_sp3(a2))
+        ):
+            continue
+        d1 = sum(
+            1
+            for nb in a1.GetNeighbors()
+            if nb.GetSymbol() == "C" and nb.GetIdx() != a2.GetIdx()
+        )
+        d2 = sum(
+            1
+            for nb in a2.GetNeighbors()
+            if nb.GetSymbol() == "C" and nb.GetIdx() != a1.GetIdx()
+        )
+        pair = tuple(sorted((d1, d2)))
+        gid = {(2, 2): 131, (2, 3): 132, (3, 3): 133}.get(pair)
+        if gid is not None:
+            corrections[gid] = corrections.get(gid, 0) + 1
+
+
+def _nvp_ring_corrections(mol, corrections):
+    """Corrections 125-129: small rings and aromatic substitution.
+
+    125/126 - one per SSSR ring of size 3-4 / 5 that is not fully
+              aromatic.
+    127/128/129 - ortho/meta/para: once per molecule, by the closest
+              pair of substituted, non-fused carbons of any aromatic
+              ring. Part 3 prints no value for the para row (129): it
+              stays counted here so the estimator can refuse.
+    """
+    loaded = load_rdkit()
+    if loaded is None:
+        return
+    rings = [list(ring) for ring in loaded[0].GetSymmSSSR(mol)]
+    for ring in rings:
+        size = len(ring)
+        if size not in (3, 4, 5):
+            continue
+        if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
+            continue
+        gid = 125 if size <= 4 else 126
+        corrections[gid] = corrections.get(gid, 0) + 1
+    ring_count = {}
+    for ring in rings:
+        for idx in ring:
+            ring_count[idx] = ring_count.get(idx, 0) + 1
+    closest = None
+    for ring in rings:
+        if not all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in ring):
+            continue
+        members = set(ring)
+        substituted = [
+            idx
+            for idx in ring
+            if ring_count[idx] == 1
+            and any(
+                nb.GetIdx() not in members
+                for nb in mol.GetAtomWithIdx(idx).GetNeighbors()
+            )
+        ]
+        for pos, i1 in enumerate(substituted):
+            for i2 in substituted[pos + 1:]:
+                d = ring_arc_distance(mol, i1, i2)
+                if d in (1, 2, 3) and (closest is None or d < closest):
+                    closest = d
+    if closest is not None:
+        corrections[{1: 127, 2: 128, 3: 129}[closest]] = 1
+
+
+def _nvp_hydrogen_count_corrections(mol, corrections):
+    """Corrections 123/124: molecules with zero/one hydrogen atom."""
+    n_h = sum(atom.GetTotalNumHs() for atom in mol.GetAtoms())
+    if n_h == 0:
+        corrections[123] = 1
+    elif n_h == 1:
+        corrections[124] = 1
+
+
+def nannoolal_vp_fragmentation(mol):
+    """Fragment `mol` into Nannoolal Part 3 groups (paper Tables 1-2).
+
+    Parameters
+    ----------
+    mol : Mol
+        Normalised RDKit molecule.
+
+    Returns
+    -------
+    counts : dict
+        Group ID -> count, main groups plus second-order corrections
+        119-134 plus extension groups 301-303.
+    n : int
+        Number of non-hydrogen atoms (paper Eq. (7) normalisation: every
+        non-H atom counts).
+    success : bool
+    status : str
+        ``"OK"``, or the reason the molecule cannot be parameterised
+        (unsupported element, unclaimed atom, failed parse).
+
+    Examples
+    --------
+    Paper Table 15a (alpha-pinene; both carbonyl-free, so the OH rule
+    is idle and the ring/steric corrections carry the slope):
+
+    >>> counts, n, ok, status = nannoolal_vp_fragmentation(
+    ...     mol_from_smiles("CC1=CCC2CC1C2(C)C"))
+    >>> (ok, status, n, counts)
+    (True, 'OK', 10, {1: 3, 9: 2, 10: 2, 11: 1, 62: 1, 132: 2, 125: 1})
+
+    Paper Table 15b (1,2-ethanediol; two carbons < 5, so both OH go to
+    the short-chain group 36):
+
+    >>> counts, n, ok, status = nannoolal_vp_fragmentation(
+    ...     mol_from_smiles("OCCO"))
+    >>> (ok, status, n, counts)
+    (True, 'OK', 4, {7: 2, 36: 2})
+    """
+    if mol is None:
+        return {}, 0, False, "Failed to construct mol"
+    unsupported = sorted(
+        {
+            atom.GetSymbol()
+            for atom in mol.GetAtoms()
+            if atom.GetSymbol() not in NANNOOLAL_VP_ELEMENTS
+        }
+    )
+    if unsupported:
+        return {}, mol.GetNumAtoms(), False, (
+            "unsupported element(s) %s: outside the C/N/O/S/F/Cl/Br/I "
+            "families aeroprops parameterises" % ", ".join(unsupported)
+        )
+    counts, assignments, success, status = _nannoolal_vp_engine().fragment(mol)
+    n = mol.GetNumAtoms()
+    counts = dict(sorted(counts.items()))
+    if not success:
+        return counts, n, False, status
+
+    # Group 36: every alcohol OH of a molecule with fewer than five
+    # carbon atoms reclassifies to the short-chain group (paper Table 1;
+    # same rule and same claimed atoms as the Part 1 layer).
+    n_carbon = sum(
+        1 for atom in mol.GetAtoms() if atom.GetSymbol() == "C"
+    )
+    if n_carbon < 5:
+        n_oh = sum(counts.pop(gid, 0) for gid in (33, 34, 35, 36))
+        if n_oh:
+            counts[36] = n_oh
+
+    corrections = {}
+    _nvp_carbonyl_corrections(mol, assignments, corrections)
+    _nvp_halogen_carbon_corrections(mol, corrections)
+    _nvp_steric_corrections(mol, corrections)
+    _nvp_ring_corrections(mol, corrections)
+    _nvp_hydrogen_count_corrections(mol, corrections)
+    counts.update(corrections)
+    return counts, n, True, "OK"
