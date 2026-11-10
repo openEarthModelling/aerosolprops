@@ -541,3 +541,181 @@ def nannoolal_bp_interaction_counts(counts):
     return class_counts
 
 
+#: Status of the group-interaction term of an estimation.
+#:
+#: * ``"OK"`` - GI computed per Eq. (3), or zero because fewer than two
+#:   interaction groups are present.
+#: * ``"no-GI (extension groups present)"`` - the molecule contains a
+#:   Compernolle (2010) extension group (301-303); no interaction
+#:   parameters can be derived for them, so GI is skipped and the result
+#:   carries reduced confidence.
+#: * ``"missing interaction parameter (B, G)"``-style - the molecule
+#:   needs an interaction the paper prints without a value (Table 5 rows
+#:   153 B-G and 211 R-R); the estimation must be refused, never zeroed.
+GI_STATUS_OK = "OK"
+GI_STATUS_NO_GI = "no-GI (extension groups present)"
+
+
+def nannoolal_bp_gi(counts, n):
+    """Group-interaction term GI [K] of paper Eq. (3).
+
+    The ordered double sum over the m interaction groups of the molecule
+    is evaluated through its counting equivalent: a same-class pair
+    contributes ``n_g*(n_g - 1)*C_gg`` and a cross-class pair contributes
+    ``2*n_g1*n_g2*C_g1g2`` (the i != j pairs are counted twice),
+    normalised by ``n*(m - 1)``.  ``C_i-i = 0``.  Pairs absent from
+    paper Table 5 contribute zero; the two pairs printed without a value
+    (rows 153 B-G and 211 R-R) make the estimation fail.
+
+    Parameters
+    ----------
+    counts : dict
+        Group counts keyed by group ID.
+    n : int
+        Number of non-hydrogen atoms in the molecule (all elements).
+
+    Returns
+    -------
+    gi : float or None
+        GI [K], or ``None`` when a required interaction parameter does
+        not exist in the paper.
+    status : str
+        One of the GI statuses described with :data:`GI_STATUS_OK`.
+
+    Examples
+    --------
+    Di-isopropanolamine (paper Table 17b, n = 9, m = 3: OH x2 + NH x1);
+    the paper's footnote works GI out to 96.193 K:
+
+    >>> gi, status = nannoolal_bp_gi({34: 2, 42: 1}, 9)
+    >>> status
+    'OK'
+    >>> round(gi, 3)
+    96.193
+
+    A single functional group gives no interaction term; an extension
+    group (hydroperoxide, 301) switches to the no-GI branch:
+
+    >>> nannoolal_bp_gi({34: 2}, 9)  # ethylene glycol: m = 2, A-A
+    (64.8441111111111, 'OK')
+    >>> nannoolal_bp_gi({69: 2, 51: 1}, 10)  # 2 aromatic nitro + ketone
+    (-719.2661999999999, 'OK')
+    >>> nannoolal_bp_gi({301: 1, 34: 1}, 20)[1]
+    'no-GI (extension groups present)'
+    >>> nannoolal_bp_gi({37: 1, 51: 1}, 10)  # phenol + ketone = B-G, row 153
+    (None, 'missing interaction parameter (B, G)')
+    >>> nannoolal_bp_gi({38: 1, 34: 1}, 20)  # ether + alcohol, n = 20
+    (13.53991, 'OK')
+    """
+    if any(gid in NANNOOLAL_BP_EXTENSIONS for gid in counts):
+        return 0.0, GI_STATUS_NO_GI
+    class_counts = nannoolal_bp_interaction_counts(counts)
+    if class_counts is None or n is None or n <= 0:
+        return None, "invalid input"
+    m = sum(class_counts.values())
+    if m <= 1:
+        return 0.0, GI_STATUS_OK
+    total = 0.0
+    letters = sorted(class_counts)
+    for i, c1 in enumerate(letters):
+        n1 = class_counts[c1]
+        for c2 in letters[i:]:
+            n2 = class_counts[c2]
+            pair = (c1, c2)
+            if pair not in NANNOOLAL_BP_INTERACTION_IDS:
+                continue  # not in Table 5: zero contribution
+            if pair not in NANNOOLAL_BP_INTERACTIONS:
+                return None, "missing interaction parameter (%s, %s)" % pair
+            c = NANNOOLAL_BP_INTERACTIONS[pair]
+            if c1 == c2:
+                total += n1 * (n1 - 1) * c
+            else:
+                total += 2.0 * n1 * n2 * c
+    return total / (n * (m - 1)), GI_STATUS_OK
+
+
+def nannoolal_bp_boiling_point(counts, n):
+    """Estimate the normal boiling point [K] (paper Eq. (1) and (3)).
+
+    .. math::
+
+        T_b = \\frac{\\sum_i N_i C_i + GI}{n^{0.6583} + 1.6868} + 84.3395
+
+    with `n` the number of **non-hydrogen atoms of all elements** (the
+    paper's n; note the UManSysProp behaviour comparison counts only
+    C/O/N/F/Cl/Br/I there - sulphur is silently dropped by its
+    composition routine).  Group interactions are only evaluated between
+    the non-additive groups of Table 9 when at least two are present.
+
+    Parameters
+    ----------
+    counts : dict
+        Group counts keyed by group ID as produced by
+        :func:`aeroprops.boiling_point.nannoolal_fragmentation`
+        (first-order groups, second-order corrections 118-133 and
+        extension groups 301-303 in one dictionary).
+    n : int
+        Number of non-hydrogen atoms in the molecule.
+
+    Returns
+    -------
+    Tb : float or None
+        Normal boiling point [K], or ``None`` on invalid input: unknown
+        group ID, non-positive `n`, or a required group-interaction
+        parameter that the paper does not provide (Table 5 rows 153 and
+        211).  A missing interaction is a refusal to estimate, not a
+        zero.  Molecules bearing an extension group (301-303) are
+        estimated without the GI term (see :func:`nannoolal_bp_gi`).
+
+    Examples
+    --------
+    The four worked examples of paper Tables 17a-17d.
+
+    3,3,4,4-Tetramethylhexane (Table 17a; n = 10, sum 2153.745 K,
+    calculated 429.5 K, experimental 444.0 K):
+
+    >>> counts = {1: 6, 4: 2, 6: 2, 133: 1}
+    >>> round(nannoolal_bp_boiling_point(counts, 10), 1)
+    429.5
+
+    Di-isopropanolamine (Table 17b; n = 9, m = 3 interactions, sum
+    2521.902 K, calculated 509.3 K, experimental 522.0 K):
+
+    >>> counts = {1: 2, 7: 4, 34: 2, 42: 1}
+    >>> round(nannoolal_bp_boiling_point(counts, 9), 1)
+    509.3
+
+    Perfluoro-2-propanone (Table 17c; n = 10, halogen corrections
+    120/121/123, sum 1010.746 K, calculated 246.3 K, experimental
+    245.9 K):
+
+    >>> counts = {7: 2, 21: 6, 51: 1, 120: 1, 121: 2, 123: 1}
+    >>> round(nannoolal_bp_boiling_point(counts, 10), 1)
+    246.3
+
+    Methyl m-toluate (Table 17d; n = 11, meta pair 128 and conjugation
+    correction 118, sum 2655.112 K, calculated 490.7 K - the paper
+    prints 490.6 K - experimental 492.3 K):
+
+    >>> counts = {2: 1, 3: 1, 15: 4, 16: 2, 45: 1, 128: 1, 118: 1}
+    >>> round(nannoolal_bp_boiling_point(counts, 11), 1)
+    490.7
+
+    Invalid input returns ``None`` rather than raising:
+
+    >>> nannoolal_bp_boiling_point({999: 1}, 10) is None
+    True
+    >>> nannoolal_bp_boiling_point({1: 1}, 0) is None
+    True
+    """
+    total = nannoolal_bp_group_sum(counts)
+    if total is None or not isinstance(n, (int, float)) or n <= 0:
+        return None
+    gi, _status = nannoolal_bp_gi(counts, n)
+    if gi is None:
+        return None
+    base = NANNOOLAL_BP_BASE
+    return (total + gi) / (n ** base["a"] + base["b"]) + base["c"]
+
+
+
