@@ -191,7 +191,7 @@ NANNOOLAL_BP_GROUPS = {
     77: ("COCl (acid chloride)", 778.9151, 19),
     91: ("(C,Si)=N", 229.2288, 101),
     92: ("(O=C-(C)2)a ketone, aromatic side", 606.1797, 54),
-    97: ("(C,Si)a-NH-(Ca,Si)a aromatic sec. amine", 201.3224, 98),
+    97: ("(C,Si)r-NH-(Cr,Si)r cyclic secondary amine", 201.3224, 98),
     101: ("(C,Si)2-N-(C,Si)2 quaternary amine", -109.6269, 33),
     106: ("imidazole (=CNC=NC=)", 484.6371, 3),
     108: ("(S)-C≡N", 659.7336, 38),

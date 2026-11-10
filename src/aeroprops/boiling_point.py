@@ -175,23 +175,32 @@ NANNOOLAL_BP_SMARTS = {
     303: ("[#6][CX3](=[OX1])([OX2][OX2][N+](=[OX1])([OX1-]))",
           (1, 2, 3, 4, 5, 6, 7)),
     # --- Nitrogen ----------------------------------------------------
-    # Amines split on hydrogen count and aromatic neighbours; 97 keeps
-    # the Part 1 text definition (at least one aromatic C neighbour)
-    # over the examples table - see module docs. 66/67 are ring-size
-    # classes of aromatic N; 106 claims whole imidazole rings first.
+    # Amines split on hydrogen count; secondary amines split on ring
+    # membership (42 acyclic / 97 cyclic). The Part 1 Table 1 text for
+    # 97 ("at least one aromatic neighbour") contradicts its own example
+    # molecules (morpholine, pyrrolidine); the Part 3 revision (FPE 354
+    # (2008) Table 1) defines 97 explicitly as "in a ring (cyclic
+    # secondary amine)" with the same examples, so the cyclic reading is
+    # adopted. 66/67 are the "free electron pair" (H0) aromatic N only -
+    # a pyrrole-type ring NH is 97, and an NH bonded to a ring N (e.g.
+    # pyrazole) matches no group and refuses. 106 claims whole imidazole
+    # rings first.
     40: ("[NX3;H2][#6]", (0,)),
     41: ("[NX3;H2][c]", (0,)),
-    42: ("[NX3;H1]([#6])[#6]", (0,)),
-    97: ("[NX3;H1]([#6])[c]", (0,)),
+    42: ("[#7X3;H1;!R]([#6])[#6]", (0,)),
+    97: ("[#7X3;H1;R]([#6;R])[#6;R]", (0,)),
     43: ("[NX3;H0]([#6])([#6])[#6]", (0,)),
     101: ("[N+;X4;H0]([#6])([#6])([#6])[#6]", (0,)),
-    66: ("[n;r5]", (0,)),
-    67: ("[n;r6]", (0,)),
+    66: ("[n;r5;H0]", (0,)),
+    67: ("[n;r6;H0]", (0,)),
     57: ("[#6][CX2]#[NX1]", (1, 2)),
     108: ("[#16][CX2]#[NX1]", (1, 2)),
     111: ("[#7][CX2]#[NX1]", (1, 2)),
     91: ("[NX2]=[#6]", (0,)),
-    68: ("[#6][N+](=[OX1])([OX1-])", (1, 2, 3)),
+    # 68/69 split on the nitro-bearing carbon: aliphatic ([C]) vs
+    # aromatic ([c]); a shared [#6] context would let the lower-priority
+    # number 68 steal aromatic nitros from 69.
+    68: ("[C][N+](=[OX1])([OX1-])", (1, 2, 3)),
     69: ("[c][N+](=[OX1])([OX1-])", (1, 2, 3)),
     106: ("[n;r5]1[c;r5][n;r5][c;r5][c;r5]1", (0, 1, 2, 3, 4)),
     # --- Sulfur ------------------------------------------------------
@@ -360,13 +369,15 @@ def _steric_corrections(mol, corrections):
           aromatic or double-bonded (tert-butylbenzene crowding; the
           bond from an sp3 carbon to a ring atom is single, so the
           condition sits on the neighbour, not the bond).
-    131/132/133 - per *acyclic* single C(sp3)-C(sp3) bond, by the number
-          of further carbon neighbours of each endpoint: 2-2, 3-2, 3-3
+    131/132/133 - per single C(sp3)-C(sp3) bond, by the number of
+          further carbon neighbours of each endpoint: 2-2, 3-2, 3-3
           (paper Table 2 names C2C-CC2 / C3C-CC2 / C3C-CC3). Ring bonds
-          are excluded: the bicyclohexyl junction bond is acyclic even
-          though its carbons are ring atoms, while cyclohexane ring
-          bonds must not fire (their crowding is parameterised by the
-          ring corrections 125/126).
+          qualify: the paper's own example for 132 (ethyl bornyl ether)
+          only reaches 3+2 on the bornane bridge bond C7-C4, and the
+          131 example (bicyclohexyl) is the acyclic analogue of decalin's
+          fused (2,2) bond. Ordinary small-ring crowding never reaches
+          (2,2) per bond (cyclohexane bonds are 1-1), so 125/126 stay
+          the sole small-ring corrections.
     """
     for atom in mol.GetAtoms():
         if atom.GetSymbol() != "C":
@@ -384,7 +395,7 @@ def _steric_corrections(mol, corrections):
     for bond in mol.GetBonds():
         a1, a2 = bond.GetBeginAtom(), bond.GetEndAtom()
         key = tuple(sorted((a1.GetIdx(), a2.GetIdx())))
-        if key in seen_bonds or bond.IsInRing():
+        if key in seen_bonds:
             continue
         seen_bonds.add(key)
         if (
