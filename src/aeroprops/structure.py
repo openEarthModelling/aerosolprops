@@ -50,14 +50,47 @@ def _normalizer_transform():
     return _normalizer
 
 
+def normalize_mol(mol):
+    """Return `mol` passed through RDKit's ``Normalizer`` transform.
+
+    Every structure entering aeroprops passes through this charge-form
+    correction (see :func:`mol_from_smiles`): RDKit renders nitrate,
+    nitro, and peroxyacyl nitrate (PAN) groups in the charge-separated
+    form (e.g. ``C[N+](=O)[O-]``), and the aeroprops SMARTS catalogues
+    are written against that form. Callers handing in a pre-built
+    ``Mol`` object are responsible for normalising it with this function
+    before fragmenting.
+
+    Parameters
+    ----------
+    mol : Mol
+        RDKit molecule (already parsed).
+
+    Returns
+    -------
+    mol : Mol or None
+        Normalised molecule, or ``None`` if `mol` is ``None`` or RDKit
+        is unavailable.
+
+    Examples
+    --------
+    >>> from rdkit import Chem
+    >>> m = normalize_mol(Chem.MolFromSmiles("CN(=O)=O"))
+    >>> Chem.MolToSmiles(m)
+    'C[N+](=O)[O-]'
+    >>> normalize_mol(None) is None
+    True
+    """
+    if mol is None or load_rdkit() is None:
+        return None
+    return _normalizer_transform().normalize(mol)
+
+
 def mol_from_smiles(smi):
     """Parse a SMILES string into a normalised RDKit molecule.
 
-    Every structure entering aeroprops passes through RDKit's
-    ``Normalizer`` charge-correction transform. This matters for nitrate,
-    nitro, and peroxyacyl nitrate (PAN) groups: RDKit renders them in the
-    charge-separated form (e.g. ``C[N+](=O)[O-]``), and the SMARTS
-    catalogues in aeroprops are written against that form.
+    Equivalent to parsing with ``Chem.MolFromSmiles`` followed by
+    :func:`normalize_mol`.
 
     Parameters
     ----------
@@ -82,8 +115,7 @@ def mol_from_smiles(smi):
     loaded = load_rdkit()
     if loaded is None:
         return None
-    Chem = loaded[0]
-    mol = Chem.MolFromSmiles(smi)
+    mol = loaded[0].MolFromSmiles(smi)
     if mol is None:
         return None
     return _normalizer_transform().normalize(mol)
