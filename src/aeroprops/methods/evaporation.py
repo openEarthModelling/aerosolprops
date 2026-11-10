@@ -77,6 +77,8 @@ __all__ = [
     "evaporation_gk",
     "evaporation_diacid_factor",
     "evaporation_log10_vapour_pressure",
+    "evaporation_parameters",
+    "evaporation_boiling_temperature",
 ]
 
 #: log10 of the Pascal content of one atmosphere; converts the paper's
@@ -364,7 +366,18 @@ def evaporation_log10_vapour_pressure(counts, T=298.15,
     c = _validated_counts(counts)
     if c is None:
         return None
+    ab = _evaporation_ab(c, upstream_compat)
+    if ab is None:
+        return None
+    return ab[0] + ab[1] / temperature ** EVAPORATION_KAPPA + LOG10_ATM_TO_PA
 
+
+def _evaporation_ab(c, upstream_compat):
+    """Assemble the (A, B) parameters of Eq. 13 from validated counts.
+
+    Paper mode returns the paper Eqs. 27-31 assembly; upstream mode
+    reproduces the UManSysProp arithmetic (see the module docstring).
+    """
     n_cl = c["5"] + c["6"] + c["7"]
     n_hb = c["8"] + c["9"] + c["10"] + c["11"]
     if not upstream_compat:
@@ -379,8 +392,12 @@ def evaporation_log10_vapour_pressure(counts, T=298.15,
         a_hb = _aggregate(c, _A_PAPER, _HB_KEYS) / sqrt(n_hb) \
             if n_hb else 0.0
         A = a_lin + (a_cl + a_hb) * factor
+        # k12 enters only through its typed split (12lin above,
+        # 12CL/12HB here), so the plain "12" key is deliberately
+        # excluded from the 5..20 sum -- a caller that also sets "12"
+        # must not be double-counted.
         b_cl_hb = _aggregate(c, _B_PAPER, tuple(
-            str(k) for k in range(5, 21))) \
+            str(k) for k in range(5, 21) if k != 12)) \
             + _B_PAPER["12"] * (c["12CL"] + c["12HB"])
         B = _aggregate(c, _B_PAPER, ("1", "2", "3", "4", "12lin")) \
             + b_cl_hb * factor
@@ -408,7 +425,44 @@ def evaporation_log10_vapour_pressure(counts, T=298.15,
         keys = tuple(str(k) for k in range(1, 21))
         A = _aggregate(c, _A_UPSTREAM, keys)
         B = _aggregate(c, _B_UPSTREAM, keys)
-    return A + B / temperature ** EVAPORATION_KAPPA + LOG10_ATM_TO_PA
+    return A, B
+
+
+def evaporation_parameters(counts, upstream_compat=False):
+    """Assemble the Eq. 13 intercept and slope parameters (A, B).
+
+    The model is ``log10(p0/atm) = A + B / T**1.5``; ``None`` on
+    invalid counts.
+
+    >>> evaporation_parameters({"2": 5, "3": 2.0})  # neopentane
+    (2.93454, -14012.48)
+    """
+    c = _validated_counts(counts)
+    if c is None:
+        return None
+    return _evaporation_ab(c, upstream_compat)
+
+
+def evaporation_boiling_temperature(counts, upstream_compat=False):
+    """Estimate the boiling temperature [K] (Eq. 14 basis: p0 = 1 atm).
+
+    Solves ``A + B / Tb**1.5 = 0`` for the Eq. 13 parameters; returns
+    ``None`` on invalid counts or when no positive solution exists
+    (A and B of the same sign).
+
+    >>> round(evaporation_boiling_temperature({"2": 5, "3": 2.0}), 1)
+    283.6
+    """
+    ab = evaporation_parameters(counts, upstream_compat)
+    if ab is None:
+        return None
+    A, B = ab
+    if A == 0.0:
+        return None
+    ratio = B / -A
+    if ratio <= 0.0:
+        return None
+    return ratio ** (1.0 / EVAPORATION_KAPPA)
 
 
 
