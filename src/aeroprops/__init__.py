@@ -16,7 +16,8 @@ Method coverage for v0.1:
   planned
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004), including the SOA extension groups of Compernolle et al. (ACP 10,
-  6271, 2010) — planned
+  6271, 2010) — implemented (see
+  :class:`aeroprops.boiling_point.NannoolalBP`)
 - Nannoolal Part 3 vapour pressure (Nannoolal et al., FPE 269, 117, 2008) —
   planned
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
@@ -35,6 +36,21 @@ methods — so pieces remain extractable upstream.
 
 __version__ = "0.1.0.dev0"
 
-from . import methods, structure, topology, vapour_pressure
+from . import (
+    boiling_point,
+    fragmentation,
+    methods,
+    structure,
+    topology,
+    vapour_pressure,
+)
 
-__all__ = ["__version__", "methods", "structure", "topology", "vapour_pressure"]
+__all__ = [
+    "__version__",
+    "boiling_point",
+    "fragmentation",
+    "methods",
+    "structure",
+    "topology",
+    "vapour_pressure",
+]

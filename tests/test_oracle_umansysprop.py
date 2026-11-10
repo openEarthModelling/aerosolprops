@@ -13,117 +13,18 @@ Skipped entirely when the UManSysProp source tree is not present (set
 path used during development).
 """
 
-import os
-import sys
-import types
-
 import pytest
 
+import ums_oracle
 from aeroprops.methods.simpol1 import LOG10_ATM_TO_PA, simpol1_bk
 from aeroprops.structure import mol_from_smiles
 from aeroprops.vapour_pressure import simpol1_fragmentation
 
-#: Local UManSysProp checkout (oracle only; never a runtime dependency).
-DEFAULT_USP_REPO = (
-    "/home/zhangfan/Project/20260529_ChemSim/jlbox_study/"
-    "umansysprop_src/UManSysProp_public-master"
-)
-
-USP_REPO = os.environ.get("AEROPROPS_UMS_REPO", DEFAULT_USP_REPO)
+USP_REPO = ums_oracle.USP_REPO
 
 pytestmark = pytest.mark.skipif(
-    not os.path.isdir(USP_REPO), reason="UManSysProp source tree not available"
+    not ums_oracle.available(), reason="UManSysProp source tree not available"
 )
-
-
-def _install_shims():
-    """Install the tutorial pybel/pkg_resources shims and import UMS.
-
-    Returns ``(groups_module, vapour_pressures_module)``. The shims make
-    UManSysProp's ``from openbabel import pybel`` /
-    ``pkg_resources.resource_stream`` calls work against RDKit; the one
-    OpenBabel-dialect SMARTS in the UMS catalogue that RDKit rejects is
-    rewritten (a compatibility fix of the *oracle harness*, not part of
-    any aeroprops catalogue).
-    """
-    if USP_REPO in sys.path:
-        sys.path.remove(USP_REPO)
-    for name in ("umansysprop", "umansysprop.groups", "umansysprop.vapour_pressures"):
-        sys.modules.pop(name, None)
-
-    from rdkit import Chem as _Chem
-    from rdkit import RDLogger as _RDLogger
-
-    # The first parse attempt of the OpenBabel-dialect pattern below
-    # logs a (harmless, recovered-from) RDKit error; keep test output
-    # clean.
-    _RDLogger.DisableLog("rdApp.error")
-
-    rewrite = {
-        # UMS group-2 pattern uses an OpenBabel dialect RDKit rejects;
-        # drop the second alternative (UMS overwrites result["2"] for
-        # amides anyway - see the whitelist below).
-        r"([#6][!$([NX3][CX3]=O),$([CX3](=O)[NX3])])": r"([#6][!$([NX3][CX3]=O)])",
-    }
-
-    class _Smarts(object):
-        def __init__(self, smartsmi):
-            self.source = smartsmi
-            s = rewrite.get(smartsmi, smartsmi)
-            patt = _Chem.MolFromSmarts(s)
-            if patt is None and s.startswith("(") and s.endswith(")"):
-                patt = _Chem.MolFromSmarts(s[1:-1])
-            if patt is None:
-                raise IOError("bad SMARTS %s" % smartsmi)
-            self._patt = patt
-
-        def findall(self, mol):
-            # uniquify=True reproduces OpenBabel findall's deduplicated
-            # match list, the semantics the method notes pin down.
-            return mol._rdmol.GetSubstructMatches(self._patt, uniquify=True)
-
-    class _Molecule(object):
-        def __init__(self, smi):
-            self._rdmol = _Chem.MolFromSmiles(smi)
-            self._smiles = smi
-
-        @property
-        def molwt(self):
-            from rdkit.Chem import Descriptors
-
-            return Descriptors.MolWt(self._rdmol)
-
-        def __str__(self):
-            return self._smiles
-
-    def _readstring(fmt, smi):
-        return _Molecule(smi.decode() if isinstance(smi, bytes) else smi)
-
-    ob = types.ModuleType("openbabel")
-    pybel = types.ModuleType("openbabel.pybel")
-    pybel.Smarts = _Smarts
-    pybel.readstring = _readstring
-    ob.pybel = pybel
-    sys.modules["openbabel"] = ob
-    sys.modules["openbabel.pybel"] = pybel
-
-    pkg_resources = types.ModuleType("pkg_resources")
-
-    def _resource_stream(package, filename):
-        return open(os.path.join(USP_REPO, "umansysprop", "data", filename), "rb")
-
-    pkg_resources.resource_stream = _resource_stream
-    sys.modules["pkg_resources"] = pkg_resources
-
-    sys.path.insert(0, USP_REPO)
-    from umansysprop import groups, vapour_pressures
-
-    return groups, vapour_pressures
-
-
-@pytest.fixture(scope="module")
-def ums():
-    return _install_shims()
 
 
 def _ours(smi):
@@ -133,16 +34,11 @@ def _ours(smi):
 
 
 def _readstring_smi(smi):
-    # Route through the shim installed in sys.modules so the UMS code
-    # under test sees exactly what it would see in production.
-    import openbabel.pybel as _pybel
-
-    return _pybel.readstring("smi", smi)
+    return ums_oracle.readstring(None, smi)
 
 
 def _ums_log10p_atm(ums_modules, smi, T=298.15):
-    _, vapour_pressures = ums_modules
-    return vapour_pressures.simpol(_readstring_smi(smi), T)
+    return ums_modules.vapour_pressures.simpol(_readstring_smi(smi), T)
 
 
 def _ours_log10p_atm(counts, T=298.15):
@@ -156,10 +52,7 @@ def _ours_log10p_atm(counts, T=298.15):
 
 
 def _example_output_smiles():
-    path = os.path.join(USP_REPO, "umansysprop", "examples", "Example_output.txt")
-    with open(path) as handle:
-        lines = handle.read().splitlines()
-    return [line.split("\t")[0] for line in lines[1:] if line.strip()]
+    return ums_oracle.example_output_smiles()
 
 
 #: Known UManSysProp deviations from the paper, whitelisted per the
@@ -294,7 +187,7 @@ def test_oracle_example_output_counts_and_log10p(ums):
     worst = 0.0
     for smi in smiles:
         raw = dict(zip([str(k) for k in range(31)], [0] * 31))
-        raw.update(ums[0].simpol(_readstring_smi(smi)))
+        raw.update(ums.groups.simpol(_readstring_smi(smi)))
         ums_counts = {int(k): v for k, v in raw.items() if v}
         ours = _ours(smi)
         assert ours == ums_counts, smi
@@ -320,7 +213,7 @@ def test_oracle_amide_probe_set_counts_match(ums):
     matched = 0
     for smi in probe:
         assert smi not in whitelisted
-        raw = ums[0].simpol(_readstring_smi(smi))
+        raw = ums.groups.simpol(_readstring_smi(smi))
         ums_counts = {int(k): v for k, v in raw.items() if v}
         ours = _ours(smi)
         assert ours == ums_counts, smi
@@ -337,7 +230,7 @@ def test_oracle_whitelisted_deviations(ums, name, smi, deviations, justification
     """Documented UMS deviations: the live UMS oracle must reproduce the
     recorded UMS values (guards against oracle drift), and aeroprops
     must reproduce the paper-semantics values."""
-    raw = ums[0].simpol(_readstring_smi(smi))
+    raw = ums.groups.simpol(_readstring_smi(smi))
     ums_counts = {int(k): v for k, v in raw.items() if v}
     ours = _ours(smi)
     for k, (ums_value, ours_value) in deviations.items():
@@ -360,7 +253,7 @@ def test_oracle_whitelist_covers_all_amide_diffs(ums):
         "CC(=O)NCC",
     }
     for smi in molecules:
-        raw = ums[0].simpol(_readstring_smi(smi))
+        raw = ums.groups.simpol(_readstring_smi(smi))
         ums_counts = {int(k): v for k, v in raw.items() if v}
         ours = _ours(smi)
         for k in set(ums_counts) | set(ours):
