@@ -1,8 +1,8 @@
-# aeroprops
+# aerosolprops
 
 Structure-derived pure-component properties for atmospheric organic aerosol.
 
-`aeroprops` is a modern successor to the pure-component property methods of
+`aerosolprops` is a modern successor to the pure-component property methods of
 [UManSysProp](https://github.com/loftytopping/UManSysProp_public)
 (Topping et al., GMD 9, 899–911, 2016), rebuilt on
 [RDKit](https://www.rdkit.org/) as the structure engine and following the
@@ -28,13 +28,13 @@ papers and tests against literature values.
 
 Boiling points used as inputs (by Myrdal–Yalkowsky and Nannoolal Part 3) can
 come from the self-implemented Nannoolal Part 1 route, from `thermo`'s
-built-in Joback method, or from experimental data — `aeroprops` does **not**
+built-in Joback method, or from experimental data — `aerosolprops` does **not**
 reimplement Joback.
 
 ## Installation
 
 ```bash
-pip install aeroprops
+pip install aerosolprops
 ```
 
 RDKit and `thermo` are required dependencies.
@@ -52,21 +52,21 @@ RDKit and `thermo` are required dependencies.
   connectivity queries. No fingerprints, no 3D, no descriptor packages.
 - **No home-grown graph algorithms.** The graph primitives (connected
   components, ring distances, neighbour queries) are RDKit built-ins;
-  `aeroprops.topology` only wraps them. What is method-specific is the
+  `aerosolprops.topology` only wraps them. What is method-specific is the
   translation of paper semantics (e.g. SIMPOL.1 "acid-side carbons",
   EVAPORATION "in-chain oxygen") onto those primitives.
-- **`thermo` compatibility.** aeroprops hard-depends on `thermo` and follows
+- **`thermo` compatibility.** aerosolprops hard-depends on `thermo` and follows
   its group-contribution conventions (`{group_id: coefficient record}`
   catalogues, counts-based static estimators, Joback-style one-time
   fragmenting wrappers). Where a method's counting semantics do not fit
   `thermo`'s mutually-exclusive SMARTS partition (SIMPOL.1's groups overlap
-  and replace one another additively), aeroprops ships its own fragmenter
+  and replace one another additively), aerosolprops ships its own fragmenter
   but keeps the same interface, so pieces can still be contributed upstream
   with minimal rework.
 
 ## Licensing and data provenance
 
-`aeroprops` is MIT-licensed. Coefficients are entered from the published
+`aerosolprops` is MIT-licensed. Coefficients are entered from the published
 papers cited above (facts, not copyrightable expression), and SMARTS
 patterns are authored from the group definitions in those papers.
 UManSysProp is used **only** as a behavioural test oracle during development;

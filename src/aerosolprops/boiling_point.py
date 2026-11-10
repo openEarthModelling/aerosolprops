@@ -3,8 +3,8 @@
 
 Nannoolal Part 1 (Nannoolal, Rarey, Ramjugernath & Cordes, Fluid Phase
 Equilibria 226, 45-63, 2004) via the priority-claim fragmenter of
-:mod:`aeroprops.fragmentation` and the pure coefficient catalogue and
-estimator of :mod:`aeroprops.methods.nannoolal_bp`.
+:mod:`aerosolprops.fragmentation` and the pure coefficient catalogue and
+estimator of :mod:`aerosolprops.methods.nannoolal_bp`.
 
 This module owns everything RDKit: the SMARTS catalogue (authored
 clean-room from the paper's group *definitions*; no third-party pattern
@@ -17,7 +17,7 @@ functional pattern except their flanking carbon skeleton (paper Table
 groups claim single carbons; overlaps are adjudicated by the paper's
 priority numbers (Table 1, footnote a: lower number wins).
 
-The aeroprops catalogue parameterises the C/N/O/S/F/Cl/Br/I subset of
+The aerosolprops catalogue parameterises the C/N/O/S/F/Cl/Br/I subset of
 the paper's groups. Molecules containing other elements the paper
 covers (Si, Ge, Sn, P, As, Se, B, Al - groups 70-93, 113, 116, 117)
 fail cleanly with a status naming the missing family: atmospheric SOA
@@ -166,10 +166,10 @@ NANNOOLAL_BP_SMARTS = {
     65: ("[o](:[c]):[c]", (0,)),
     115: ("[o;r5]~[n;r5]", (0, 1)),
     # Compernolle (2010) Table 3 extensions; the paper has no priority
-    # numbers for them, so aeroprops assigns engine-local ordering (a
+    # numbers for them, so aerosolprops assigns engine-local ordering (a
     # separate constant below) - 302 before 301 because the peroxy-acid
     # OH-O also matches the hydroperoxide pattern. Nitro/PAN nitrogen is
-    # written in the charge-separated form aeroprops' normaliser emits.
+    # written in the charge-separated form aerosolprops' normaliser emits.
     301: ("[OX2H1][OX2][#6]", (0, 1)),
     302: ("[OX2H1][OX2][CX3](=[OX1])", (0, 1, 2, 3)),
     303: ("[#6][CX3](=[OX1])([OX2][OX2][N+](=[OX1])([OX1-]))",
@@ -242,7 +242,7 @@ NANNOOLAL_BP_SMARTS = {
 #: matches the hydroperoxide pattern first).
 NANNOOLAL_BP_EXTENSION_PRIORITIES = {303: 1, 302: 2, 301: 3}
 
-#: Elements the aeroprops catalogue parameterises (paper groups outside
+#: Elements the aerosolprops catalogue parameterises (paper groups outside
 #: this set - Si, Ge, Sn, P, As, Se, B, Al families 70-93, 113, 116,
 #: 117 - are deliberately not transcribed; see module docstring).
 NANNOOLAL_BP_ELEMENTS = frozenset("C N O S F Cl Br I".split())
@@ -524,7 +524,7 @@ def nannoolal_fragmentation(mol):
     if unsupported:
         return {}, mol.GetNumAtoms(), False, (
             "unsupported element(s) %s: outside the C/N/O/S/F/Cl/Br/I "
-            "families aeroprops parameterises" % ", ".join(unsupported)
+            "families aerosolprops parameterises" % ", ".join(unsupported)
         )
     counts, assignments, success, status = _nannoolal_engine().fragment(mol)
     n = mol.GetNumAtoms()
@@ -558,7 +558,7 @@ class NannoolalBP:
     """Normal boiling point of pure components (Nannoolal Part 1, 2004).
 
     Wraps :func:`nannoolal_fragmentation` and the pure estimators of
-    :mod:`aeroprops.methods.nannoolal_bp` in the thermo ``Joback``
+    :mod:`aerosolprops.methods.nannoolal_bp` in the thermo ``Joback``
     idiom: fragmentation runs once in the constructor, results are
     stored on the instance, and the estimation method returns ``None``
     if fragmentation failed or a required group interaction has no

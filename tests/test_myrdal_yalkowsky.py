@@ -19,7 +19,7 @@ import math
 
 import pytest
 
-from aeroprops.methods.myrdal_yalkowsky import (
+from aerosolprops.methods.myrdal_yalkowsky import (
     LOG10_ATM_TO_PA,
     MY_DCPGL_INTERCEPT,
     MY_DCPGL_TAU,

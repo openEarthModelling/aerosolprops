@@ -15,14 +15,14 @@ valueless groups counted then refused) and read-only fragmentation.
 
 import pytest
 
-from aeroprops.methods.nannoolal_vp import (
+from aerosolprops.methods.nannoolal_vp import (
     LOG10_ATM_TO_PA,
     nannoolal_vp_boiling_point,
     nannoolal_vp_dB,
     nannoolal_vp_log10_vapour_pressure,
 )
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import (
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import (
     _nannoolal_vp_engine,
     nannoolal_vp_fragmentation,
 )
@@ -259,7 +259,7 @@ def test_priority_adjudication(smi, expected):
 
 def test_fragmentation_is_read_only():
     """The fragmenter never modifies the input molecule."""
-    from aeroprops.structure import load_rdkit
+    from aerosolprops.structure import load_rdkit
 
     to_smiles = load_rdkit()[0].MolToSmiles
     for smi in BATTERY[:12] + BATTERY_VALUELESS:
@@ -282,7 +282,7 @@ def test_out_of_scope_molecules_fail_cleanly():
 
 
 # --- Gate 7: the NannoolalVP wrapper ------------------------------------
-from aeroprops.vapour_pressure import NannoolalVP  # noqa: E402
+from aerosolprops.vapour_pressure import NannoolalVP  # noqa: E402
 
 
 def test_experimental_tb_passthrough():
@@ -301,7 +301,7 @@ def test_experimental_tb_passthrough():
 
 
 def test_nannoolal_route_default():
-    from aeroprops.boiling_point import NannoolalBP
+    from aerosolprops.boiling_point import NannoolalBP
 
     vp = NannoolalVP(smi="CCO")
     assert vp.success, vp.status
@@ -350,7 +350,7 @@ def test_joback_route():
 
 def test_joback_route_from_mol_object():
     """Without `smi` the route derives canonical SMILES from the mol."""
-    from aeroprops.structure import normalize_mol
+    from aerosolprops.structure import normalize_mol
 
     vp = NannoolalVP(
         mol=normalize_mol(mol_from_smiles("CCCCCC")), tb_source="joback"
@@ -387,7 +387,7 @@ def test_unknown_tb_source_refused():
 def test_extension_groups_take_the_no_gi_branch():
     """Compernolle extension groups estimate without the GI term and
     are flagged in gi_status, never silently dropped."""
-    from aeroprops.methods.nannoolal_vp import GI_STATUS_NO_GI
+    from aerosolprops.methods.nannoolal_vp import GI_STATUS_NO_GI
 
     for smi, gid in [
         ("CC(C)(C)OO", 301),

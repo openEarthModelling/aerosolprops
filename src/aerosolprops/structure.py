@@ -2,8 +2,8 @@
 """Structure input layer: RDKit loading, normalisation, and composition.
 
 This module is the only place that touches RDKit. RDKit is a required
-dependency of aeroprops, but it is still imported lazily (attempted once
-and cached) so that ``import aeroprops`` itself stays lightweight; public
+dependency of aerosolprops, but it is still imported lazily (attempted once
+and cached) so that ``import aerosolprops`` itself stays lightweight; public
 functions additionally return ``None`` rather than raise if RDKit is
 missing from a broken installation.
 """
@@ -14,7 +14,7 @@ _normalizer = None
 
 
 def load_rdkit():
-    """Load the RDKit modules used by aeroprops.
+    """Load the RDKit modules used by aerosolprops.
 
     Returns
     -------
@@ -53,10 +53,10 @@ def _normalizer_transform():
 def normalize_mol(mol):
     """Return `mol` passed through RDKit's ``Normalizer`` transform.
 
-    Every structure entering aeroprops passes through this charge-form
+    Every structure entering aerosolprops passes through this charge-form
     correction (see :func:`mol_from_smiles`): RDKit renders nitrate,
     nitro, and peroxyacyl nitrate (PAN) groups in the charge-separated
-    form (e.g. ``C[N+](=O)[O-]``), and the aeroprops SMARTS catalogues
+    form (e.g. ``C[N+](=O)[O-]``), and the aerosolprops SMARTS catalogues
     are written against that form. Callers handing in a pre-built
     ``Mol`` object are responsible for normalising it with this function
     before fragmenting.

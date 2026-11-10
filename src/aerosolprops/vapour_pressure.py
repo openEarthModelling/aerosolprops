@@ -3,9 +3,9 @@
 
 This module owns everything that needs RDKit: molecule construction,
 SMARTS matching, and graph algorithms. The coefficient catalogues and
-the pure estimators live in :mod:`aeroprops.methods.simpol1` and
-:mod:`aeroprops.methods.myrdal_yalkowsky`; the graph primitives live
-in :mod:`aeroprops.topology`.
+the pure estimators live in :mod:`aerosolprops.methods.simpol1` and
+:mod:`aerosolprops.methods.myrdal_yalkowsky`; the graph primitives live
+in :mod:`aerosolprops.topology`.
 
 Why not ``thermo.group_contribution``? thermo's fragmentation
 machinery (``smarts_fragment_priority`` / ``BaseGroupContribution``)
@@ -17,7 +17,7 @@ groups also touch, the amide acid-side carbons (group 2) overlap the
 carbon count (group 1), and the nitrophenol/nitroester groups (29/30)
 *replace* aromatic-hydroxyl / ester counts (17/11) instead of
 partitioning them. No priority-ordered exclusive partition can express
-that, so aeroprops ships its own minimal fragmenter here, keeping the
+that, so aerosolprops ships its own minimal fragmenter here, keeping the
 ergonomics of the thermo wrappers (one-time fragmentation in the
 constructor, ``counts``/``success``/``status`` attributes, estimators
 returning ``None`` on failure).
@@ -164,16 +164,16 @@ def simpol1_fragmentation(mol):
     Groups 2 (amide acid-side carbons), 3 (aromatic rings) and 4
     (non-aromatic rings) are computed graphically: group 2 by cutting
     each amide C-N bond and counting carbons in the acyl component
-    (:func:`aeroprops.topology.fragments_excluding_bond`); groups 3/4
+    (:func:`aerosolprops.topology.fragments_excluding_bond`); groups 3/4
     from SSSR rings classified by aromaticity.
 
     Parameters
     ----------
     mol : Mol
         Normalised RDKit molecule (as produced by
-        :func:`aeroprops.structure.mol_from_smiles`; pass user-supplied
+        :func:`aerosolprops.structure.mol_from_smiles`; pass user-supplied
         ``Mol`` objects through
-        :func:`aeroprops.structure.normalize_mol` first). Must contain
+        :func:`aerosolprops.structure.normalize_mol` first). Must contain
         only C, H, N and O.
 
     Returns
@@ -308,7 +308,7 @@ class SIMPOL1:
     """SIMPOL.1 sub-cooled liquid vapour pressure (Pankow & Asher, 2008).
 
     Wraps :func:`simpol1_fragmentation` and the pure estimators of
-    :mod:`aeroprops.methods.simpol1` in the thermo ``Joback`` idiom:
+    :mod:`aerosolprops.methods.simpol1` in the thermo ``Joback`` idiom:
     fragmentation runs once in the constructor, results are stored on
     the instance, and every estimation method returns ``None`` if
     fragmentation failed.
@@ -332,7 +332,7 @@ class SIMPOL1:
 
     Examples
     --------
-    >>> from aeroprops.methods.simpol1 import LOG10_ATM_TO_PA
+    >>> from aerosolprops.methods.simpol1 import LOG10_ATM_TO_PA
     >>> sim = SIMPOL1(smi="C1=CCCCC1")
     >>> round(sim.log10_vapour_pressure(293.15) - LOG10_ATM_TO_PA, 2)
     -0.95
@@ -415,7 +415,7 @@ MYRDAL_YALKOWSKY_HBOND_SMARTS = {
 #: module refuses rather than silently mis-estimating (the adjudicated
 #: scope ruling): UManSysProp extrapolates nitrates/PAN into the
 #: flexibility and hydrogen-bond counts with no published basis, and
-#: its enol handling likewise; aeroprops reports the molecule as
+#: its enol handling likewise; aerosolprops reports the molecule as
 #: unsupported so the caller falls through to SIMPOL.1/EVAPORATION,
 #: whose parameterisations cover these groups.
 MYRDAL_YALKOWSKY_REFUSED_SMARTS = {
@@ -472,16 +472,16 @@ def myrdal_yalkowsky_descriptors(mol):
       components of the ring atoms joined by ring bonds (naphthalene
       and anthracene are one system each, biphenyl two - deliberately
       not the SSSR ring count, see the tests);
-    * **tau** - :func:`aeroprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_tau`;
+    * **tau** - :func:`aerosolprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_tau`;
     * **HBN groups** - :data:`MYRDAL_YALKOWSKY_HBOND_SMARTS` counts,
-      combined by :func:`aeroprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_hbn`
+      combined by :func:`aerosolprops.methods.myrdal_yalkowsky.myrdal_yalkowsky_hbn`
       with the all-element molecular weight.
 
     Parameters
     ----------
     mol : Mol
         Normalised RDKit molecule (see
-        :func:`aeroprops.structure.mol_from_smiles`).
+        :func:`aerosolprops.structure.mol_from_smiles`).
 
     Returns
     -------
@@ -603,7 +603,7 @@ def _my_joback_boiling_point(smi):
     """Normal boiling point [K] from ``thermo``'s Joback method, or None.
 
     thermo is imported lazily (the Joback route is its only consumer in
-    aeroprops; the class is re-exported at the package top level in
+    aerosolprops; the class is re-exported at the package top level in
     thermo 0.6.1). ``Joback.Tb_estimated`` holds a number even when the
     SMARTS fragmentation failed, so the route gates on ``success``.
     """
@@ -630,8 +630,8 @@ def _resolve_normal_boiling_point(mol, smi, tb_source):
     Shared Tb routing of the *input* vapour-pressure methods (Myrdal-
     Yalkowsky Eq. 12, Nannoolal Part 3 Eq. 6): an experimental value
     must be passed in, or the estimate comes from Nannoolal Part 1
-    (:class:`aeroprops.boiling_point.NannoolalBP`, the default route)
-    or from ``thermo``'s Joback method (aeroprops does not reimplement
+    (:class:`aerosolprops.boiling_point.NannoolalBP`, the default route)
+    or from ``thermo``'s Joback method (aerosolprops does not reimplement
     Joback).
 
     Returns ``(tb, error)``: ``tb`` is ``None`` exactly when ``error``
@@ -667,9 +667,9 @@ class MyrdalYalkowsky:
     An *input* method: paper Eq. 12 needs the normal boiling point
     ``Tb`` and, for the solid branch, the melting point ``Tm``.
     ``Tb`` is routed from Nannoolal Part 1
-    (:class:`aeroprops.boiling_point.NannoolalBP`, the default),
+    (:class:`aerosolprops.boiling_point.NannoolalBP`, the default),
     ``thermo``'s built-in Joback method, or experimental data —
-    aeroprops does not reimplement Joback. With ``Tm`` unset the
+    aerosolprops does not reimplement Joback. With ``Tm`` unset the
     estimate is the sub-cooled liquid vapour pressure (the paper's own
     convention for its Table 1 liquid rows), annotated in ``status``.
 
@@ -823,7 +823,7 @@ class MyrdalYalkowsky:
 # even more aggressively overlapping than SIMPOL.1 -- the carbon count
 # (k2) overlaps every functional group, the "12" ring group fires on
 # ring oxygens *and* on ring carbons bearing OH/OOH, and k19 counts
-# per-hydroxyl neighbourhoods that share atoms. aeroprops therefore
+# per-hydroxyl neighbourhoods that share atoms. aerosolprops therefore
 # counts EVAPORATION descriptors with explicit graph traversal (one
 # shared atom classification plus two counting rule sets), which also
 # lets the two c3 branching conventions live side by side.
@@ -1434,7 +1434,7 @@ def evaporation_fragmentation(mol, upstream_compat=False):
     ----------
     mol : Mol
         Normalised RDKit molecule (charge-form nitrates/PANs, as
-        produced by :func:`aeroprops.structure.mol_from_smiles`).
+        produced by :func:`aerosolprops.structure.mol_from_smiles`).
     upstream_compat : bool, optional
         Select the counting convention (see above).
 
@@ -1490,7 +1490,7 @@ class EVAPORATION:
     et al., ACP 11, 9431-9450, 2011).
 
     Wraps :func:`evaporation_fragmentation` and the pure estimators of
-    :mod:`aeroprops.methods.evaporation` in the same idiom as
+    :mod:`aerosolprops.methods.evaporation` in the same idiom as
     :class:`SIMPOL1`: fragmentation runs once in the constructor and
     every estimation method returns ``None`` if it failed.
 
@@ -1589,7 +1589,7 @@ class EVAPORATION:
 # Nannoolal Part 3 vapour pressure: fragmentation layer
 # ---------------------------------------------------------------------------
 # Same fragmenter engine as the Part 1 boiling-point module
-# (aeroprops.boiling_point): the priority-claim partition of
+# (aerosolprops.boiling_point): the priority-claim partition of
 # fragmentation.PriorityFragmenter with a Part 3 catalogue. The SMARTS
 # patterns are the ones authored clean-room from the Part 1/Part 3 group
 # definitions (both papers share the group system); the Part 3 deltas
@@ -1614,7 +1614,7 @@ from .methods.nannoolal_vp import (
 )
 
 #: SMARTS catalogue: group ID -> (pattern, claim); see the Part 1
-#: catalogue (aeroprops.boiling_point.NANNOOLAL_BP_SMARTS) for the
+#: catalogue (aerosolprops.boiling_point.NANNOOLAL_BP_SMARTS) for the
 #: pattern-by-pattern rationale. Groups the paper defines without a dB
 #: value (106 imidazole, 108 thiocyanate, 118 1,2-diketone) are kept:
 #: they are counted, then refused at estimation.
@@ -1750,7 +1750,7 @@ NANNOOLAL_VP_SMARTS = {
 #: numbers exist for them); identical to the Part 1 layer's.
 NANNOOLAL_VP_EXTENSION_PRIORITIES = {303: 1, 302: 2, 301: 3}
 
-#: Elements the aeroprops catalogue parameterises (same scope decision
+#: Elements the aerosolprops catalogue parameterises (same scope decision
 #: as the Part 1 layer: the Si/Ge/Sn/P/As/Se/B/Al families 70-93, 113,
 #: 116, 117 and the Si-halogen correction 217 stay untranscribed).
 NANNOOLAL_VP_ELEMENTS = frozenset("C N O S F Cl Br I".split())
@@ -2028,7 +2028,7 @@ def nannoolal_vp_fragmentation(mol):
     if unsupported:
         return {}, mol.GetNumAtoms(), False, (
             "unsupported element(s) %s: outside the C/N/O/S/F/Cl/Br/I "
-            "families aeroprops parameterises" % ", ".join(unsupported)
+            "families aerosolprops parameterises" % ", ".join(unsupported)
         )
     counts, assignments, success, status = _nannoolal_vp_engine().fragment(mol)
     n = mol.GetNumAtoms()
@@ -2061,7 +2061,7 @@ class NannoolalVP:
     """Vapour pressure of pure components (Nannoolal Part 3, 2008).
 
     Wraps :func:`nannoolal_vp_fragmentation` and the pure estimators of
-    :mod:`aeroprops.methods.nannoolal_vp` in the thermo ``Joback``
+    :mod:`aerosolprops.methods.nannoolal_vp` in the thermo ``Joback``
     idiom (one-time fragmentation in the constructor, ``counts`` /
     ``success`` / ``status`` attributes, estimators return ``None`` on
     failure - never zero). Like :class:`MyrdalYalkowsky` this is an

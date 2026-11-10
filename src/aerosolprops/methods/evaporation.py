@@ -35,7 +35,7 @@ consistent with g_k having been computed from the unrounded fitted
 parameters). Descriptor counts (the ``counts``
 dictionaries consumed here, keys "1".."20" plus the typed ring
 splits "12lin"/"12CL"/"12HB") are produced by the graph fragmenter in
-:mod:`aeroprops.vapour_pressure`.
+:mod:`aerosolprops.vapour_pressure`.
 
 Two assembly modes
 ------------------
@@ -53,7 +53,7 @@ from the continuous form only in float rounding), the *entire* k12
 count is treated as CL/HB in the B parameter, and b20 = 1817.60
 (the transcription typo of the upstream data file). The counting
 semantics that feed this mode are likewise replicated; see
-:func:`aeroprops.vapour_pressure.evaporation_fragmentation`.
+:func:`aerosolprops.vapour_pressure.evaporation_fragmentation`.
 
 References
 ----------
@@ -82,7 +82,7 @@ __all__ = [
 ]
 
 #: log10 of the Pascal content of one atmosphere; converts the paper's
-#: fitted log10(p/atm) basis to the aeroprops log10(P/Pa) basis.
+#: fitted log10(p/atm) basis to the aerosolprops log10(P/Pa) basis.
 LOG10_ATM_TO_PA = log10(101325.0)
 
 #: Temperature exponent kappa of paper Eq. 13 (optimised in paper
@@ -225,7 +225,7 @@ def _validated_counts(counts):
     Accepts the descriptor keys "1".."20" plus the typed ring splits;
     unknown keys (typos) and non-numeric or non-finite values reject
     the whole input, mirroring the unknown-group discipline of
-    :func:`aeroprops.methods.simpol1.simpol1_log10_vapour_pressure`.
+    :func:`aerosolprops.methods.simpol1.simpol1_log10_vapour_pressure`.
     """
     try:
         out = {}
@@ -305,7 +305,7 @@ def evaporation_log10_vapour_pressure(counts, T=298.15,
     counts : dict
         Descriptor counts keyed "1".."20" (c1 is forced to 1) plus
         "12lin"/"12CL"/"12HB", as produced by
-        :func:`aeroprops.vapour_pressure.evaporation_fragmentation`.
+        :func:`aerosolprops.vapour_pressure.evaporation_fragmentation`.
         Counts may be fractional (the topology descriptor c3 carries a
         fractional ring number).
     T : float, optional

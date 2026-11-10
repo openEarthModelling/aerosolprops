@@ -2,15 +2,15 @@
 """Shared UManSysProp oracle harness (behavioural oracle only).
 
 UManSysProp is run live and unmodified as the reference behaviour for
-aeroprops' re-implementations; none of its SMARTS, data files or code
-are copied into aeroprops (MIT discipline). This module centralises the
+aerosolprops' re-implementations; none of its SMARTS, data files or code
+are copied into aerosolprops (MIT discipline). This module centralises the
 RDKit-based ``openbabel.pybel`` / ``pkg_resources`` shims from the
 UManSysProp tutorial so every oracle test module (SIMPOL.1, Nannoolal)
 shares one harness.
 
 The one OpenBabel-dialect SMARTS in the UMS catalogue that RDKit
 rejects is rewritten inside the shim - a compatibility fix of the
-oracle harness, not part of any aeroprops catalogue.
+oracle harness, not part of any aerosolprops catalogue.
 """
 
 import os
@@ -23,7 +23,7 @@ DEFAULT_USP_REPO = (
     "umansysprop_src/UManSysProp_public-master"
 )
 
-USP_REPO = os.environ.get("AEROPROPS_UMS_REPO", DEFAULT_USP_REPO)
+USP_REPO = os.environ.get("AEROSOLPROPS_UMS_REPO", DEFAULT_USP_REPO)
 
 
 def available():

@@ -6,21 +6,21 @@ import sys
 
 
 def test_version():
-    import aeroprops
+    import aerosolprops
 
-    assert isinstance(aeroprops.__version__, str)
-    assert aeroprops.__version__.count(".") >= 1
+    assert isinstance(aerosolprops.__version__, str)
+    assert aerosolprops.__version__.count(".") >= 1
 
 
 def test_import_hygiene():
-    """Importing aeroprops must pull in neither RDKit nor thermo.
+    """Importing aerosolprops must pull in neither RDKit nor thermo.
 
     Pins the layering discipline: the structure layer loads RDKit lazily
     and nothing in the package top level needs thermo's OO machinery.
     Run in a subprocess so it is independent of test ordering.
     """
     code = (
-        "import sys; import aeroprops; "
+        "import sys; import aerosolprops; "
         "assert 'rdkit' not in sys.modules, 'rdkit imported at package import'; "
         "assert 'thermo' not in sys.modules, 'thermo imported at package import'"
     )

@@ -24,13 +24,13 @@ as the claim, cannot express anchor-subset claims (e.g. an ester group
 that claims C, O, O but not the flanking carbons), has no place for
 non-atom-claiming second-order corrections (Nannoolal 118-133), for
 groups without a priority number, or for refusing molecules with atoms
-no group parameterises. aeroprops therefore ships this engine, keeping
+no group parameterises. aerosolprops therefore ships this engine, keeping
 the thermo idiom of one-time fragmentation with ``counts``/``success``/
 ``status`` results.
 
 The engine itself knows nothing about any estimation method; method
 modules provide a catalogue (see
-:func:`aeroprops.boiling_point.nannoolal_fragmentation` for the first
+:func:`aerosolprops.boiling_point.nannoolal_fragmentation` for the first
 user) and post-processing hooks.
 
 Examples
@@ -105,7 +105,7 @@ class PriorityFragmenter(object):
         ----------
         mol : Mol
             Normalised RDKit molecule (as produced by
-            :func:`aeroprops.structure.mol_from_smiles`).
+            :func:`aerosolprops.structure.mol_from_smiles`).
 
         Returns
         -------

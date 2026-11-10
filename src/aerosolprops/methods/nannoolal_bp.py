@@ -54,7 +54,7 @@ questions closed):
 - The interaction classes of Table 9 are recorded with the Part 3 split of
   the double-listed phenol OH (group 37 belongs to class B only, note
   OQ-15).
-- The three SOA extension groups (IDs 301-303, aeroprops slot numbering)
+- The three SOA extension groups (IDs 301-303, aerosolprops slot numbering)
   carry boiling-point contributions from Compernolle, Ceulemans & Muller,
   Atmos. Chem. Phys. 10 (2010) 6271-6282, doi:10.5194/acp-10-6271-2010
   (open access), Table 3. No group-interaction parameters can be derived
@@ -440,7 +440,7 @@ NANNOOLAL_BP_INTERACTION_IDS = {
     ("S", "S"): 212,
 }
 
-#: SOA extension groups (aeroprops slot IDs 301-303), keyed like
+#: SOA extension groups (aerosolprops slot IDs 301-303), keyed like
 #: :data:`NANNOOLAL_BP_GROUPS`. Values are ``(name, source note)``. The
 #: boiling-point contributions themselves are merged into
 #: :data:`NANNOOLAL_BP_GROUPS`; membership in this table marks a group as
@@ -475,7 +475,7 @@ def nannoolal_bp_group_sum(counts):
     ----------
     counts : dict
         Group counts keyed by group ID as produced by
-        :func:`aeroprops.boiling_point.nannoolal_fragmentation`.
+        :func:`aerosolprops.boiling_point.nannoolal_fragmentation`.
 
     Returns
     -------
@@ -662,7 +662,7 @@ def nannoolal_bp_boiling_point(counts, n):
     ----------
     counts : dict
         Group counts keyed by group ID as produced by
-        :func:`aeroprops.boiling_point.nannoolal_fragmentation`
+        :func:`aerosolprops.boiling_point.nannoolal_fragmentation`
         (first-order groups, second-order corrections 118-133 and
         extension groups 301-303 in one dictionary).
     n : int

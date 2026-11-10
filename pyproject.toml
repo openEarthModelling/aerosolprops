@@ -3,7 +3,7 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aeroprops"
+name = "aerosolprops"
 version = "0.1.0.dev0"
 description = "Structure-derived pure-component properties for atmospheric organic aerosol: vapour pressures and boiling points by group contribution"
 readme = "README.md"
@@ -44,9 +44,10 @@ dependencies = [
 test = ["pytest>=7.0"]
 docs = ["mkdocs>=1.5", "mkdocs-material>=9.0"]
 
-# [project.urls]
-# Homepage/Repository/Documentation URLs are added once the public
-# repository goes live.
+[project.urls]
+Homepage = "https://github.com/openEarthModelling/aerosolprops"
+Repository = "https://github.com/openEarthModelling/aerosolprops"
+Changelog = "https://github.com/openEarthModelling/aerosolprops/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

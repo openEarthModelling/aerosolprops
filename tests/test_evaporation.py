@@ -16,7 +16,7 @@ from math import log10
 
 import pytest
 
-from aeroprops.methods.evaporation import (
+from aerosolprops.methods.evaporation import (
     EVAPORATION_B20_UPSTREAM_TYPO,
     EVAPORATION_COEFFICIENTS,
     EVAPORATION_GK_PAPER,
@@ -26,8 +26,8 @@ from aeroprops.methods.evaporation import (
     evaporation_gk,
     evaporation_log10_vapour_pressure,
 )
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import EVAPORATION, evaporation_fragmentation
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import EVAPORATION, evaporation_fragmentation
 
 LOG10_ATM = log10(101325.0)
 
@@ -250,7 +250,7 @@ class TestCorpusSanity:
 
     def test_molecule_not_modified(self):
         # fragmentation is read-only on the input molecule
-        from aeroprops.structure import load_rdkit
+        from aerosolprops.structure import load_rdkit
         to_smiles = load_rdkit()[0].MolToSmiles
         for smi in CORPUS[:12]:
             mol = mol_from_smiles(smi)

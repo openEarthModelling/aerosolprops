@@ -1,10 +1,10 @@
 # Nannoolal boiling point (Part 1) and vapour pressure (Part 3)
 
 **Status:** both parts are implemented. Part 1:
-`aeroprops.methods.nannoolal_bp` (pure estimator and coefficient
-catalogue) and `aeroprops.boiling_point.NannoolalBP` (object-oriented
-wrapper). Part 3: `aeroprops.methods.nannoolal_vp` (pure estimator and
-coefficient catalogue) and `aeroprops.vapour_pressure.NannoolalVP`
+`aerosolprops.methods.nannoolal_bp` (pure estimator and coefficient
+catalogue) and `aerosolprops.boiling_point.NannoolalBP` (object-oriented
+wrapper). Part 3: `aerosolprops.methods.nannoolal_vp` (pure estimator and
+coefficient catalogue) and `aerosolprops.vapour_pressure.NannoolalVP`
 (wrapper), which takes its boiling-point input from Part 1 by default,
 from `thermo`'s Joback method, or from experimental data.
 
@@ -56,13 +56,13 @@ from `thermo`'s Joback method, or from experimental data.
   refused (Table 5 prints no value for it); Table 6 row 218 (C, M) is
   printed "Do not estimate" and fails rather than zero-filling.
 - Elements covered: C, N, O, S, F, Cl, Br, I. The paper also
-  parameterises Si/Ge/Sn/P/As families — out of scope for aeroprops and
+  parameterises Si/Ge/Sn/P/As families — out of scope for aerosolprops and
   rejected by the element gate.
 
 ## Quick start
 
 ```python
->>> from aeroprops.boiling_point import NannoolalBP
+>>> from aerosolprops.boiling_point import NannoolalBP
 >>> nnp = NannoolalBP(smi="CCO")                  # ethanol
 >>> nnp.counts
 {1: 1, 7: 1, 36: 1}
@@ -79,11 +79,11 @@ Paper Table 17 worked examples reproduce through the real fragmenter
 of the same group sum):
 
 ```python
->>> from aeroprops.boiling_point import nannoolal_fragmentation
->>> from aeroprops.structure import mol_from_smiles
+>>> from aerosolprops.boiling_point import nannoolal_fragmentation
+>>> from aerosolprops.structure import mol_from_smiles
 >>> nannoolal_fragmentation(mol_from_smiles("COC(=O)c1cccc(C)c1"))
 ({2: 1, 3: 1, 15: 4, 16: 2, 45: 1, 118: 1, 128: 1}, 11, True, 'OK')
->>> from aeroprops.methods.nannoolal_bp import nannoolal_bp_boiling_point
+>>> from aerosolprops.methods.nannoolal_bp import nannoolal_bp_boiling_point
 >>> round(nannoolal_bp_boiling_point({1: 6, 4: 2, 6: 2, 133: 1}, 10), 1)
 429.5
 ```
@@ -92,7 +92,7 @@ The pure layer takes plain count dictionaries (n = number of non-H
 atoms of all elements — the paper counts sulfur too):
 
 ```python
->>> from aeroprops.methods.nannoolal_bp import nannoolal_bp_gi
+>>> from aerosolprops.methods.nannoolal_bp import nannoolal_bp_gi
 >>> nannoolal_bp_gi({34: 2, 42: 1}, 9)     # Table 17b footnote: GI = 96.193 K
 (96.19312222222223, 'OK')
 ```
@@ -105,7 +105,7 @@ sulfonate ester), and the two parameter-less interaction pairs.
 ## Part 3 quick start
 
 ```python
->>> from aeroprops.vapour_pressure import NannoolalVP
+>>> from aerosolprops.vapour_pressure import NannoolalVP
 >>> w = NannoolalVP(smi="CCO")    # ethanol; Tb routed from Part 1
 >>> w.counts, round(w.db, 7)
 ({1: 1, 7: 1, 36: 1}, 0.6311822)
@@ -164,14 +164,14 @@ route named.
   deviations against the Antoine equation per compound family and
   pressure range (e.g. hydrocarbons 4.0% overall vs Antoine's 3.4%,
   with this work clearly better in the very-low-pressure range);
-  aeroprops inherits that accuracy by construction of the coefficients.
+  aerosolprops inherits that accuracy by construction of the coefficients.
 
 ## Implementation notes
 
 - Overlapping groups are adjudicated by the paper's priority numbers
   (Table 1 footnote a: "If two different groups can be used, the one
   with the lower priority number must be used") through the reusable
-  engine `aeroprops.fragmentation.PriorityFragmenter` — group-level
+  engine `aerosolprops.fragmentation.PriorityFragmenter` — group-level
   claiming with multi-atom all-or-nothing claims, not pre-split SMARTS.
 - Corrections 118–133 that no SMARTS can express (conjugation,
   o/m/p ring arc distances, ring sizes, steric bond crowding) are
@@ -185,7 +185,7 @@ route named.
   molecules (morpholine, pyrrolidine); 66/67 are the H0 "free electron
   pair" aromatic N only, so a pyrrole-type ring NH is 97.
 - Aromatic ortho/meta/para pair groups use ring arc distances
-  (`aeroprops.topology.ring_arc_distance`), fused atoms excluded,
+  (`aerosolprops.topology.ring_arc_distance`), fused atoms excluded,
   counted once per molecule with the minimum distance winning.
 - Coefficient transcription rulings (documented in tests): Table 1
   ID 12 misprint 492.0707 (duplicate of ID 109) resolved to the Table 3
@@ -216,7 +216,7 @@ route named.
   UMS's `vapour_pressures.nannoolal` live with the Example_output.txt
   protocol (T = 298.15, Tb from UMS's own Part 1): the oracle
   reproduces the shipped golden column bit-for-bit for all 26
-  molecules; 3 are bit-for-bit with aeroprops, 2 last-ulp (dB
+  molecules; 3 are bit-for-bit with aerosolprops, 2 last-ulp (dB
   accumulation order), and every remaining molecule plus 60 controls is
   either identical or whitelisted with paper evidence — including
   three UMS data-file misprints (group 7 as 0.0378487 vs the printed

@@ -1,8 +1,8 @@
-# aeroprops
+# aerosolprops
 
 Structure-derived pure-component properties for atmospheric organic aerosol.
 
-`aeroprops` is a modern successor to the pure-component property methods of
+`aerosolprops` is a modern successor to the pure-component property methods of
 [UManSysProp](https://github.com/loftytopping/UManSysProp_public) (Topping et
 al., GMD 9, 899–911, 2016), rebuilt on [RDKit](https://www.rdkit.org/) as the
 structure engine and following the conventions of the
@@ -21,7 +21,7 @@ failures that return `None` rather than raise.
 | [Myrdal–Yalkowsky](methods/myrdal_yalkowsky.md) | Vapour pressure | + Tb, Tm | implemented |
 
 Boiling points used as inputs can come from Nannoolal Part 1, from
-`thermo`'s built-in Joback method, or from experimental data; aeroprops does
+`thermo`'s built-in Joback method, or from experimental data; aerosolprops does
 not reimplement Joback.
 
 ## Conventions

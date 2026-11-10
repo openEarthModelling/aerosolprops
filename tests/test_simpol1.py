@@ -19,7 +19,7 @@ import math
 
 import pytest
 
-from aeroprops.methods.simpol1 import (
+from aerosolprops.methods.simpol1 import (
     LOG10_ATM_TO_PA,
     SIMPOL1_GAS_CONSTANT,
     SIMPOL1_GROUPS,
@@ -29,8 +29,8 @@ from aeroprops.methods.simpol1 import (
     simpol1_log10_vapour_pressure,
     simpol1_vapourisation_enthalpy,
 )
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import SIMPOL1, simpol1_fragmentation
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import SIMPOL1, simpol1_fragmentation
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Shared pytest fixtures for the aeroprops test suite."""
+"""Shared pytest fixtures for the aerosolprops test suite."""
 
 import pytest
 

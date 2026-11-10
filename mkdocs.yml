@@ -1,6 +1,6 @@
-site_name: aeroprops
+site_name: aerosolprops
 site_description: Structure-derived pure-component properties for atmospheric organic aerosol
-# repo_url is added when the public repository goes live
+repo_url: https://github.com/openEarthModelling/aerosolprops
 theme:
   name: material
   features:

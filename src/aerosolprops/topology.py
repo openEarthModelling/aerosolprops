@@ -3,18 +3,18 @@
 
 Thin wrappers over RDKit built-ins (connected components via
 ``Chem.GetMolFrags``, ring data via ``mol.GetRingInfo()``, neighbour
-queries via ``atom.GetNeighbors()``). aeroprops deliberately contains no
+queries via ``atom.GetNeighbors()``). aerosolprops deliberately contains no
 home-grown graph algorithms: what is method-specific is the translation of
 paper semantics (e.g. the SIMPOL.1 "acid-side carbons" of an amide, the
 EVAPORATION "in-chain oxygen") onto the primitives defined here, and those
 translations live in the estimator modules.
 
 All functions take molecules as produced by
-:func:`aeroprops.structure.mol_from_smiles` and return ``None`` when RDKit
+:func:`aerosolprops.structure.mol_from_smiles` and return ``None`` when RDKit
 is unavailable or their preconditions are not met.
 """
 
-from aeroprops.structure import load_rdkit
+from aerosolprops.structure import load_rdkit
 
 
 def fragments_excluding_bond(mol, begin, end):
@@ -39,7 +39,7 @@ def fragments_excluding_bond(mol, begin, end):
 
     Examples
     --------
-    >>> from aeroprops.structure import mol_from_smiles
+    >>> from aerosolprops.structure import mol_from_smiles
     >>> propane = mol_from_smiles("CCC")
     >>> fragments_excluding_bond(propane, 0, 1)
     ((0,), (1, 2))
@@ -78,7 +78,7 @@ def separate_without_atom(mol, idx):
     Removing the bridging oxygen of diethyl ether splits the carbon
     skeleton in two; removing ethanol's terminal oxygen does not:
 
-    >>> from aeroprops.structure import mol_from_smiles
+    >>> from aerosolprops.structure import mol_from_smiles
     >>> ether = mol_from_smiles("CCOCC")
     >>> separate_without_atom(ether, 2)
     ((0, 1), (3, 4))
@@ -124,7 +124,7 @@ def ring_arc_distance(mol, idx1, idx2):
 
     Examples
     --------
-    >>> from aeroprops.structure import mol_from_smiles
+    >>> from aerosolprops.structure import mol_from_smiles
     >>> benzene = mol_from_smiles("c1ccccc1")
     >>> [ring_arc_distance(benzene, 0, j) for j in (1, 2, 3, 4, 5)]
     [1, 2, 3, 2, 1]

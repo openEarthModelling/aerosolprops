@@ -3,7 +3,7 @@
 
 Runs the *unmodified* UManSysProp ``vapour_pressures.myrdal_and_yalkowsky``
 live as the behavioural oracle (UMS's SMARTS and code are never copied
-into aeroprops) over all 19 paper Table 1 SMILES plus a control battery,
+into aerosolprops) over all 19 paper Table 1 SMILES plus a control battery,
 feeding both implementations the same experimental Tb (the method's
 input) and comparing log10(P/atm).
 
@@ -13,7 +13,7 @@ no melting-point input, so the comparison is always on the sub-cooled
 liquid branch - the paper's own convention for its Table 1 rows; the
 biphenyl row is compared at its Table 1 liquid reading.
 
-The whitelist carries the live-recorded UMS and aeroprops values (both
+The whitelist carries the live-recorded UMS and aerosolprops values (both
 sides drift-locked) and the paper evidence for every divergence:
 
 * fused aromatics: UMS feeds the SSSR ring count into tau (anthracene/
@@ -25,20 +25,20 @@ sides drift-locked) and the paper evidence for every divergence:
 * sulfur: UMS omits S atoms from the SP3 walk (diethyl sulfide
   tau = 1); the paper's Eq. 8 explicitly includes S;
 * enols and organic nitrates: UMS's wide OH/sp2 tables accept them and
-  return a number; aeroprops refuses both (outside the published
+  return a number; aerosolprops refuses both (outside the published
   parameterisation, Compernolle 2010 Section 2.6).
 
 Example_output.txt has no Myrdal-Yalkowsky column, so no exact-26
 partition is possible; the Table 1 battery plays that role. Skipped
 entirely when the UManSysProp source tree is not present
-(``AEROPROPS_UMS_REPO``, see :mod:`ums_oracle`).
+(``AEROSOLPROPS_UMS_REPO``, see :mod:`ums_oracle`).
 """
 
 import pytest
 
 import ums_oracle
-from aeroprops.methods.simpol1 import LOG10_ATM_TO_PA
-from aeroprops.vapour_pressure import MyrdalYalkowsky
+from aerosolprops.methods.simpol1 import LOG10_ATM_TO_PA
+from aerosolprops.vapour_pressure import MyrdalYalkowsky
 
 pytestmark = pytest.mark.skipif(
     not ums_oracle.available(), reason="UManSysProp source tree not available"
@@ -52,7 +52,7 @@ def _ums(ums, smi, T, tb):
 
 
 def _ours(smi, T, tb):
-    """log10(P/atm), or None when aeroprops refuses the molecule.
+    """log10(P/atm), or None when aerosolprops refuses the molecule.
 
     The T > Tb extrapolation warning (tested in gate 7) is silenced:
     two controls sit above their boiling points."""
@@ -123,7 +123,7 @@ _EXACT_IDS = [
 )
 def test_agrees_with_ums(ums, smi, tb, T, ums_val):
     """Live UMS must reproduce the recorded value (drift guard) and
-    aeroprops must match it - bit-for-bit or at the last ulp (the two
+    aerosolprops must match it - bit-for-bit or at the last ulp (the two
     implementations accumulate Eq. 12 in different orders)."""
     assert abs(_ums(ums, smi, T, tb) - ums_val) < 1e-12, (
         smi,
@@ -136,7 +136,7 @@ def test_agrees_with_ums(ums, smi, tb, T, ums_val):
 
 # --- documented divergences ---------------------------------------------
 # (name, SMILES, Tb [K], T [K], live-recorded UMS log10 atm, recorded
-#  aeroprops log10 atm or None when refused, reason)
+#  aerosolprops log10 atm or None when refused, reason)
 WL = [
     (
         "anthracene",
@@ -172,14 +172,14 @@ WL = [
         "CC=CO", 350.0, 298.15,
         -1.069735868121966, None,
         "UMS's OH family counts the enol OH and its sp2 table accepts "
-        "the C=C-C=O pattern, returning a number; aeroprops refuses "
+        "the C=C-C=O pattern, returning a number; aerosolprops refuses "
         "enols - outside the published basis (Compernolle 2010 2.6)",
     ),
     (
         "ethyl nitrate",
         "CCO[N+](=O)[O-]", 350.0, 298.15,
         -0.846970307540820, None,
-        "UMS's wide tables accept organic nitrates; aeroprops refuses "
+        "UMS's wide tables accept organic nitrates; aerosolprops refuses "
         "them - outside the published basis (Compernolle 2010 2.6)",
     ),
 ]
@@ -192,7 +192,7 @@ WL = [
 )
 def test_whitelist(ums, name, smi, tb, T, ums_val, ours_val, reason):
     """Documented deviations: the live oracle must reproduce the
-    recorded UMS value (drift guard) and aeroprops must reproduce the
+    recorded UMS value (drift guard) and aerosolprops must reproduce the
     recorded paper-faithful side (or the recorded refusal)."""
     assert abs(_ums(ums, smi, T, tb) - ums_val) < 1e-12, (
         name,
@@ -211,7 +211,7 @@ def test_whitelist(ums, name, smi, tb, T, ums_val, ours_val, reason):
 def test_no_ums_melting_point_input(ums):
     """The oracle API takes no melting point: every comparison above is
     the sub-cooled liquid branch, which is both the paper's Table 1
-    convention and aeroprops' Tm default."""
+    convention and aerosolprops' Tm default."""
     import inspect
 
     params = inspect.signature(

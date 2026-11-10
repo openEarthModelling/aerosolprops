@@ -2,7 +2,7 @@
 """Verification gates 4 and 6 for the Myrdal-Yalkowsky descriptor layer.
 
 Gate 6: the counting conventions of
-    :func:`aeroprops.vapour_pressure.myrdal_yalkowsky_descriptors`,
+    :func:`aerosolprops.vapour_pressure.myrdal_yalkowsky_descriptors`,
     each pinned to its paper evidence - the Eq. 8 word definitions
     (nonterminal, nonring, tert-butyl/triple-bond exclusions, the
     paper's propane/butane/pentane/1-pentene examples), the ring-system
@@ -20,8 +20,8 @@ import pytest
 
 from rdkit.Chem import Descriptors
 
-from aeroprops.structure import element_counts, mol_from_smiles
-from aeroprops.vapour_pressure import myrdal_yalkowsky_descriptors
+from aerosolprops.structure import element_counts, mol_from_smiles
+from aerosolprops.vapour_pressure import myrdal_yalkowsky_descriptors
 
 
 def _desc(smi):

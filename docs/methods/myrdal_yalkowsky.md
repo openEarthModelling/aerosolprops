@@ -1,8 +1,8 @@
 # Myrdal–Yalkowsky vapour pressure
 
-**Status:** implemented (`aeroprops.methods.myrdal_yalkowsky` for the
+**Status:** implemented (`aerosolprops.methods.myrdal_yalkowsky` for the
 pure estimators and coefficient catalogue,
-`aeroprops.vapour_pressure.MyrdalYalkowsky` for the object-oriented
+`aerosolprops.vapour_pressure.MyrdalYalkowsky` for the object-oriented
 wrapper).
 
 ## References
@@ -37,7 +37,7 @@ wrapper).
 ## Quick start
 
 ```python
->>> from aeroprops.vapour_pressure import MyrdalYalkowsky
+>>> from aerosolprops.vapour_pressure import MyrdalYalkowsky
 >>> my = MyrdalYalkowsky(smi="Oc1cccc(O)c1", tb=549.0)   # resorcinol
 >>> my.status
 'OK (sub-cooled liquid: Tm not supplied)'
@@ -63,7 +63,7 @@ there):
 
 ## Accuracy
 
-Paper Table 1 (19 compounds, experimental `Tb`): aeroprops reproduces
+Paper Table 1 (19 compounds, experimental `Tb`): aerosolprops reproduces
 every predicted value at the paper's printed two decimals, and against
 the observed column the average absolute error is 0.09 log units
 (factor 1.23) with a maximum of 0.39 — the paper's own summary
@@ -93,7 +93,7 @@ niche is molecules whose groups those methods do not parameterise.
 ## Known limitations / open questions
 
 - Table 1's 2-methyl-5-ethylpyridine row does not discriminate τ = 0
-  vs τ = 0.5 (both print −2.05); aeroprops uses the paper-convention
+  vs τ = 0.5 (both print −2.05); aerosolprops uses the paper-convention
   walk (τ = 0.5).
 - Appendix A prints −1.95 for 3,5-diethylphenol (rounded stepwise from
   −1.72 − 0.23) while Table 1 prints −1.96 for the same compound; the

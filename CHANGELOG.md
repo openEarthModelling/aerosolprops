@@ -6,12 +6,19 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed the package from `aeroprops` to `aerosolprops` (import name and
+  project name) ahead of the first public release; the oracle-suite
+  environment variable is now `AEROSOLPROPS_UMS_REPO`. No release was
+  ever published under the old name.
+
 ### Added
 
 - Nannoolal Part 3 vapour pressure (Nannoolal, Rarey & Ramjugernath,
   FPE 269, 117-133, 2008; SOA extension groups from Compernolle et
   al., ACP 10, 6271, 2010): the fourth and final estimator method.
-  - `aeroprops.methods.nannoolal_vp` (pure layer): the Eq. 6/7
+  - `aerosolprops.methods.nannoolal_vp` (pure layer): the Eq. 6/7
     estimators (`nannoolal_vp_dB`, `nannoolal_vp_log10_vapour_pressure`,
     `nannoolal_vp_boiling_point` via the Appendix A inversion), the
     Table 4 dB catalogue (115 groups; the three Part 3 fragmentation
@@ -21,7 +28,7 @@ and the project adheres to [semantic versioning](https://semver.org/).
     classes; row 218 (C, M) "Do not estimate" fails rather than
     zero-fills) and the Compernolle extension values on the no-GI
     branch.
-  - `aeroprops.vapour_pressure` (wrapper layer):
+  - `aerosolprops.vapour_pressure` (wrapper layer):
     `nannoolal_vp_fragmentation` — the Part 3 catalogue on the shared
     `PriorityFragmenter` engine with the OH-family short-chain (<5 C)
     and gem-diol reassignments — and the `NannoolalVP` class routing
@@ -44,12 +51,12 @@ and the project adheres to [semantic versioning](https://semver.org/).
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
   1997; hydrogen-bonding extension from Compernolle et al., ACP 10,
   6271, 2010): the third estimator method.
-  - `aeroprops.methods.myrdal_yalkowsky` (pure layer): the Eq. 2/7-12
+  - `aerosolprops.methods.myrdal_yalkowsky` (pure layer): the Eq. 2/7-12
     coefficient literals (the paper's printed 19.1 denominators, the
     authors' rounding of 2.303 R — kept because it is what reproduces
     Table 1), the tau/HBN/entropy descriptors and the Eq. 12
     log10-vapour-pressure estimator with solid/liquid branch selection.
-  - `aeroprops.vapour_pressure` (wrapper layer):
+  - `aerosolprops.vapour_pressure` (wrapper layer):
     `myrdal_yalkowsky_descriptors` — the Eq. 8 SP3/SP2 walk (nonring,
     nonterminal, tert-butyl centres and triple bonds excluded,
     heteroatoms included), RING as independent ring systems
@@ -77,14 +84,14 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 - EVAPORATION vapour pressure (Compernolle, Ceulemans & Müller, ACP 11,
   9431, 2011): the fourth estimator method.
-  - `aeroprops.methods.evaporation` (pure layer): the 40+3 coefficients
+  - `aerosolprops.methods.evaporation` (pure layer): the 40+3 coefficients
     of paper Table 4 (27 count classes incl. the 12lin/12CL/12HB ring
     split, intercepts, diacid factor) cross-verified against the paper's
     independent g_k column, the A/B parameter and Eq. 14 boiling-point
     estimators, and `evaporation_log10_vapour_pressure` (log10 Pa basis).
     Transcription rulings recorded in tests: b20 = 1817.69 (paper) vs
     1817.60 in the UManSysProp tree (typo there).
-  - `aeroprops.vapour_pressure` (wrapper layer):
+  - `aerosolprops.vapour_pressure` (wrapper layer):
     `evaporation_fragmentation` with two counting conventions — the
     paper text (default: Eq. 26 in-chain oxygen via removal
     connectivity, branching descriptor t, per-role ring functionalities,
@@ -103,18 +110,18 @@ and the project adheres to [semantic versioning](https://semver.org/).
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004; SOA extension groups from Compernolle et al., ACP 10, 6271,
   2010): the second estimator method.
-  - `aeroprops.methods.nannoolal_bp` (pure layer): the 132-group
+  - `aerosolprops.methods.nannoolal_bp` (pure layer): the 132-group
     coefficient catalogue (113 main + 16 corrections + 3 extensions;
     the two Table 1 transcription rulings are documented in tests),
     the 76 group-interaction parameters of Table 5 with the
     counting-form GI estimator `nannoolal_bp_gi` (parameter-less pairs
     B-G and R-R fail; extension groups switch to a flagged no-GI
     branch), and `nannoolal_bp_boiling_point`.
-  - `aeroprops.fragmentation`: reusable priority-number fragmenter
+  - `aerosolprops.fragmentation`: reusable priority-number fragmenter
     (paper Table 1 footnote a semantics — lower priority number wins,
     group-level claiming, multi-atom all-or-nothing claims, atom
     balance check) for any catalogue of (SMARTS, priority, claim).
-  - `aeroprops.boiling_point`: clean-room SMARTS catalogue plus graph
+  - `aerosolprops.boiling_point`: clean-room SMARTS catalogue plus graph
     helpers for the corrections that SMARTS cannot express
     (conjugation, o/m/p ring arc distances, ring sizes, steric bond
     crowding), and the Joback-style `NannoolalBP` wrapper with
@@ -126,18 +133,18 @@ and the project adheres to [semantic versioning](https://semver.org/).
     bit-for-bit; all divergences whitelisted with paper-based reasons).
 - SIMPOL.1 vapour pressure (Pankow & Asher, ACP 8, 2773, 2008): the
   first estimator method.
-  - `aeroprops.methods.simpol1` (pure layer): the 124 coefficients of
+  - `aerosolprops.methods.simpol1` (pure layer): the 124 coefficients of
     paper Table 5 as an in-source catalogue, the SMARTS catalogue with
     algorithmic-group placeholders, and pure estimators
     `simpol1_bk`, `simpol1_log10_vapour_pressure` (log10 Pa basis),
     and `simpol1_vapourisation_enthalpy` (J/mol).
-  - `aeroprops.vapour_pressure` (wrapper layer): `simpol1_fragmentation`
+  - `aerosolprops.vapour_pressure` (wrapper layer): `simpol1_fragmentation`
     and the Joback-style `SIMPOL1` class with one-time fragmentation and
     `None`-on-failure estimators. Fragmentation implements the paper's
     overlapping-additive counting semantics (O-claims of carbonyl
     classes, per-OH nitrophenol replacement of phenol, nitroester
     replacement of ester, amide acid-side graph cut, SSSR ring counts).
-  - `aeroprops.structure.normalize_mol`: public normalisation entry
+  - `aerosolprops.structure.normalize_mol`: public normalisation entry
     point for caller-supplied RDKit molecules (extracted from
     `mol_from_smiles`).
 - Verification: coefficient completeness against paper Tables 5 and 6
@@ -155,8 +162,8 @@ and the project adheres to [semantic versioning](https://semver.org/).
   dependencies `thermo>=0.6.1` and `rdkit`), CI (pytest incl. doctests on
   Linux/macOS/Windows × Python 3.9–3.14, strict docs build), and an mkdocs
   scaffold with one page per planned method.
-- `aeroprops.structure`: the RDKit entry layer — cached optional import,
+- `aerosolprops.structure`: the RDKit entry layer — cached optional import,
   normalising SMILES parser (charge-form correction for nitrate/PAN),
   element counts, molecular weight.
-- `aeroprops.topology`: molecular-graph primitives as thin wrappers over
+- `aerosolprops.topology`: molecular-graph primitives as thin wrappers over
   RDKit built-ins (fragmentation on atom/bond deletion, ring arc distance).

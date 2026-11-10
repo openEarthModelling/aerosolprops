@@ -1,7 +1,7 @@
 # SIMPOL.1 vapour pressure
 
-**Status:** implemented (`aeroprops.methods.simpol1` for the pure
-estimators and coefficient catalogue, `aeroprops.vapour_pressure.SIMPOL1`
+**Status:** implemented (`aerosolprops.methods.simpol1` for the pure
+estimators and coefficient catalogue, `aerosolprops.vapour_pressure.SIMPOL1`
 for the object-oriented wrapper).
 
 ## Reference
@@ -27,7 +27,7 @@ multifunctional organic compounds. *Atmospheric Chemistry and Physics*, 8,
 ## Quick start
 
 ```python
->>> from aeroprops.vapour_pressure import SIMPOL1
+>>> from aerosolprops.vapour_pressure import SIMPOL1
 >>> sim = SIMPOL1(smi="C1=CCCCC1")            # cyclohexene
 >>> sim.counts
 {0: 1, 1: 6, 4: 1, 5: 1}
@@ -49,7 +49,7 @@ The pure layer can be used with hand-built count dictionaries (the same
 interface `thermo` uses for RDKit-optional group-contribution methods):
 
 ```python
->>> from aeroprops.methods.simpol1 import simpol1_log10_vapour_pressure
+>>> from aerosolprops.methods.simpol1 import simpol1_log10_vapour_pressure
 >>> round(simpol1_log10_vapour_pressure({1: 6, 10: 2}, T=293.15) - 5.005716612413731, 2)  # adipic acid, log10 atm
 -7.99
 ```
@@ -78,7 +78,7 @@ Paper-level expectations (on the log10 atm basis, T = 293.15 K):
   unbounded acyl-chain length, no single SMARTS can express it. It is
   computed by cutting each amide C–N bond and counting the carbons of
   the connected component containing the acyl carbon
-  (`aeroprops.topology.fragments_excluding_bond`).
+  (`aerosolprops.topology.fragments_excluding_bond`).
 - Groups 3/4 (aromatic/non-aromatic rings) use minimal SSSR ring
   perception, which reproduces the paper's cyclomatic-number semantics
   (naphthalene 2, anthracene 3, biphenyl 2; fused bridged systems are
@@ -92,7 +92,7 @@ Paper-level expectations (on the log10 atm basis, T = 293.15 K):
 
 ## Known limitations / open questions
 
-Cases where the paper itself does not define the count; aeroprops picks
+Cases where the paper itself does not define the count; aerosolprops picks
 the conservative choice and each is exercised by a test:
 
 - **Lactams (cyclic amides)**: the C–N graph cut leaves the ring

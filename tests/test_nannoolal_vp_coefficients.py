@@ -26,11 +26,11 @@ catalogue entirely.
 
 import pytest
 
-from aeroprops.methods.nannoolal_bp import (
+from aerosolprops.methods.nannoolal_bp import (
     NANNOOLAL_BP_INTERACTION_CLASSES,
     NANNOOLAL_BP_INTERACTION_IDS,
 )
-from aeroprops.methods.nannoolal_vp import (
+from aerosolprops.methods.nannoolal_vp import (
     NANNOOLAL_VP_BASE,
     NANNOOLAL_VP_EXTENSIONS,
     NANNOOLAL_VP_GROUPS,

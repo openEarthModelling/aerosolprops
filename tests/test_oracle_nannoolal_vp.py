@@ -3,22 +3,22 @@
 
 Runs the *unmodified* UManSysProp ``vapour_pressures.nannoolal``
 implementation live as the behavioural oracle (UMS's data and SMARTS are
-never copied into aeroprops). Protocol = the Example_output.txt
+never copied into aerosolprops). Protocol = the Example_output.txt
 walkthrough: log10(P/atm) at T = 298.15 with Tb taken from UMS's own
 ``boiling_points.nannoolal`` - the same inputs UMS's example script feeds
 the method - so the comparison isolates the Part 3 dB layer.
 
 Every Example_output molecule is either identical to UMS (bit-for-bit or
 last-ulp accumulation order), or carries an entry in ``WL_26`` with the
-live-recorded UMS and aeroprops values and the paper-based reason.
+live-recorded UMS and aerosolprops values and the paper-based reason.
 UManSysProp deviations from the paper found this way:
 
 * three coefficient misprints in UMS's Part 3 data files: group 7 as
   0.0378487 (paper Table 4 prints 37.8485e-3), group 48 as 0.2692470
   (Table 4 prints 269.2471e-3) and extension 303 as 0.519 (Compernolle
-  2010 Table 3 prints 519.03e-3) - aeroprops follows the printed tables;
+  2010 Table 3 prints 519.03e-3) - aerosolprops follows the printed tables;
 * the para-pair group 129 sits in UMS's secondary file with value
-  0.0000000; Table 5 has no row for 129, so aeroprops refuses;
+  0.0000000; Table 5 has no row for 129, so aerosolprops refuses;
 * Table 6 row 218 (C, M) is "Do not estimate" in the paper; UMS's
   interaction matrix zero-fills the pair and estimates amino acids;
 * UMS lacks group 214 (aromatic bridge carbon; biphenyl) and the
@@ -27,16 +27,16 @@ UManSysProp deviations from the paper found this way:
   family reassigns short-chain (<5 C) and gem-diol OHs to 36;
 * extension groups: UMS stuffs 301/302/303 into GI classes A/C/F and
   computes interactions; the paper has no GI parameters for extensions,
-  so aeroprops skips the GI term entirely (no-GI branch);
+  so aerosolprops skips the GI term entirely (no-GI branch);
 * the N(O)O fragment has no group in the paper set - UMS silently drops
-  those atoms (no atom-balance check), aeroprops refuses;
+  those atoms (no atom-balance check), aerosolprops refuses;
 * UMS's SMARTS catalogue misses the sulfur family and CF3/CF2 group 21
   (Part 1 findings, inherited by the Part 3 data files).
 
 Where UMS and the paper agree, GI terms agree bit-for-bit even for
 6-member same-class cases (hexol) and multiple classes (adipic acid in
 the exact set). Skipped entirely when the UManSysProp source tree is not
-present (``AEROPROPS_UMS_REPO``, see :mod:`ums_oracle`).
+present (``AEROSOLPROPS_UMS_REPO``, see :mod:`ums_oracle`).
 """
 
 import os
@@ -44,8 +44,8 @@ import os
 import pytest
 
 import ums_oracle
-from aeroprops.methods.nannoolal_vp import LOG10_ATM_TO_PA
-from aeroprops.vapour_pressure import NannoolalVP
+from aerosolprops.methods.nannoolal_vp import LOG10_ATM_TO_PA
+from aerosolprops.vapour_pressure import NannoolalVP
 
 pytestmark = [
     pytest.mark.skipif(
@@ -128,7 +128,7 @@ def test_example_output_exact_bit_for_bit(ums):
 
 
 def test_example_output_exact_default_route(ums):
-    """End-to-end with aeroprops' own default route (our Part 1 Tb,
+    """End-to-end with aerosolprops' own default route (our Part 1 Tb,
     which the Part 1 oracle suite already pins bit-for-bit to UMS's for
     these molecules): the golden column is reproduced without feeding
     UMS anything."""
@@ -142,7 +142,7 @@ def test_example_output_exact_default_route(ums):
 # --- the 26 Example_output.txt molecules: last-ulp class ----------------
 # Identical model, different float accumulation order (UMS sums primary,
 # secondary and interaction contributions in three separate passes,
-# aeroprops accumulates dB in group-ID order) - a deterministic last-ulp
+# aerosolprops accumulates dB in group-ID order) - a deterministic last-ulp
 # rounding difference only.
 ULP_26 = [
     "C1=CC=C(C(=C1)[N+](=O)[O-])O",
@@ -158,32 +158,32 @@ def test_example_output_ulp_class(ums):
 
 
 # --- the 26 Example_output.txt molecules: documented deviations --------
-# (name, SMILES, UMS log10(P/atm), aeroprops log10(P/atm) or None when
+# (name, SMILES, UMS log10(P/atm), aerosolprops log10(P/atm) or None when
 #  refused, refusal-status substring or None, reason)
 REASON_129 = (
     "UMS's secondary file carries the para-pair group 129 with value"
-    " 0.0000000; Table 5 has no row for 129, so aeroprops counts it and"
+    " 0.0000000; Table 5 has no row for 129, so aerosolprops counts it and"
     " then refuses (valueless)"
 )
 REASON_NOON = (
     "the N(O)O fragment has no group in the paper's set; UMS silently"
     " drops those atoms and still returns a pressure (no atom-balance"
-    " check), aeroprops refuses with 'unclaimed atom'"
+    " check), aerosolprops refuses with 'unclaimed atom'"
 )
 REASON_OH = (
-    "OH family: aeroprops applies the Part 3 Table 1 short-chain (<5 C)"
+    "OH family: aerosolprops applies the Part 3 Table 1 short-chain (<5 C)"
     " reassignment to group 36 and the gem-diol fallback, UMS keeps the"
     " Part 1 classes 33/34/35"
 )
 REASON_GI = (
-    "extension 301 present: aeroprops skips the group-interaction term"
+    "extension 301 present: aerosolprops skips the group-interaction term"
     " entirely (no GI parameters for extension groups), UMS stuffs 301"
     " into GI class A and computes interactions - identical counts,"
     " different dB"
 )
 REASON_T7 = (
     "counts identical; UMS's Part 3 data file misprints group 7 as"
-    " 0.0378487 where Table 4 prints 37.8485e-3, aeroprops follows the"
+    " 0.0378487 where Table 4 prints 37.8485e-3, aerosolprops follows the"
     " printed table"
 )
 
@@ -319,7 +319,7 @@ WL_26 = [
 def test_example_output_whitelist(ums, name, smi, ums_vp, ours_vp, status,
                                   reason):
     """Documented deviations: the live oracle must reproduce the recorded
-    UMS value (drift guard) and aeroprops must reproduce the recorded
+    UMS value (drift guard) and aerosolprops must reproduce the recorded
     paper-faithful side - value or refusal."""
     tb, live_ums = _ums_parts(ums, smi)
     assert live_ums == ums_vp, (name, "UMS drifted")
@@ -329,7 +329,7 @@ def test_example_output_whitelist(ums, name, smi, ums_vp, ours_vp, status,
         assert live_ours is None, (name, "refusal drifted")
         assert status in w.status, (name, w.status)
     else:
-        assert live_ours == ours_vp, (name, "aeroprops drifted")
+        assert live_ours == ours_vp, (name, "aerosolprops drifted")
         assert status is None
     assert reason  # every deviation carries a justification
 
@@ -381,7 +381,7 @@ def test_control_ulp_class(ums):
 
 
 # --- control battery: documented deviations ----------------------------
-#: (name, SMILES, UMS log10(P/atm), aeroprops log10(P/atm) or None when
+#: (name, SMILES, UMS log10(P/atm), aerosolprops log10(P/atm) or None when
 #:  refused, refusal-status substring or None, reason)
 WL_CONTROL = [
     (
@@ -390,7 +390,7 @@ WL_CONTROL = [
         -2.2829193816792883, -2.3762746946777424, None,
         "UMS lacks the aromatic bridge-carbon group 214 (Table 1 row 214,"
         " paper example biphenyl): it counts only 15x10 and drops both"
-        " bridge carbons, aeroprops counts {15: 10, 214: 2}",
+        " bridge carbons, aerosolprops counts {15: 10, 214: 2}",
     ),
     (
         "biacetyl",
@@ -399,7 +399,7 @@ WL_CONTROL = [
         "refused: no dB parameter for group 118",
         "UMS lacks the 1,2-diketone group 118 (Table 1, PR 1, paper"
         " example 2,3-butanedione) and fragments it as two plain"
-        " ketones; aeroprops counts it and refuses - the paper prints no"
+        " ketones; aerosolprops counts it and refuses - the paper prints no"
         " value for it",
     ),
     (
@@ -415,7 +415,7 @@ WL_CONTROL = [
         "refused: missing interaction parameter (C, M)",
         "Table 6 row 218 (C, M) is printed 'Do not estimate'; UMS's"
         " interaction matrix zero-fills the pair and still returns a"
-        " pressure, aeroprops refuses",
+        " pressure, aerosolprops refuses",
     ),
     (
         "beta-alanine",
@@ -424,7 +424,7 @@ WL_CONTROL = [
         "refused: missing interaction parameter (C, M)",
         "Table 6 row 218 (C, M) is printed 'Do not estimate'; UMS's"
         " interaction matrix zero-fills the pair and still returns a"
-        " pressure, aeroprops refuses",
+        " pressure, aerosolprops refuses",
     ),
     (
         "methyl ethyl sulfide",
@@ -432,14 +432,14 @@ WL_CONTROL = [
         2.3279115095153444, 2.4433484446747062, None,
         "UMS's SMARTS catalogue misses the sulfur side (sulfide 54 and"
         " the chain CH2, Part 1 finding inherited by the Part 3 data);"
-        " aeroprops counts {1: 2, 4: 1, 54: 1}",
+        " aerosolprops counts {1: 2, 4: 1, 54: 1}",
     ),
     (
         "heptane-2,4-dithiol",
         "CC(S)CC(S)CC",
         0.6867341050137132, 0.7540352353801216, None,
         "UMS's SMARTS catalogue misses the thiol family (Part 1 finding);"
-        " aeroprops counts {1: 2, 4: 2, 5: 2, 53: 2}",
+        " aerosolprops counts {1: 2, 4: 2, 5: 2, 53: 2}",
     ),
     (
         "hexafluoroacetone",
@@ -478,7 +478,7 @@ def test_control_whitelist(ums, name, smi, ums_vp, ours_vp, status, reason):
         assert live_ours is None, (name, "refusal drifted")
         assert status in w.status, (name, w.status)
     else:
-        assert live_ours == ours_vp, (name, "aeroprops drifted")
+        assert live_ours == ours_vp, (name, "aerosolprops drifted")
         assert status is None
     assert reason
 
@@ -491,7 +491,7 @@ def test_control_whitelist(ums, name, smi, ums_vp, ours_vp, status, reason):
 #: the misprint scaled by the Eq. 6 slope (2e-7 x number of group-7/48
 #: occurrences x slope), i.e. small but nonzero.
 TYPO_7_48 = [
-    # (SMILES, UMS log10(P/atm), aeroprops log10(P/atm))
+    # (SMILES, UMS log10(P/atm), aerosolprops log10(P/atm))
     ("CCO", -0.6445294154175775, -0.6445293881784675),
     ("CCCO", -1.2636720283151528, -1.2636719755195909),
     ("CCCCO", -1.8444251078148124, -1.8444250316255841),
@@ -529,7 +529,7 @@ def test_control_data_misprint_class(ums, smi, ums_vp, ours_vp):
     assert live_ums == ums_vp, (smi, "UMS drifted")
     w = _ours(smi, tb)
     assert w.success, (smi, w.status)
-    assert _ours_vp(w) == ours_vp, (smi, "aeroprops drifted")
+    assert _ours_vp(w) == ours_vp, (smi, "aerosolprops drifted")
     assert w.counts == _ums_counts(ums, smi), smi
     assert ours_vp != ums_vp and abs(ours_vp - ums_vp) < 1e-5, smi
 

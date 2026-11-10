@@ -27,7 +27,7 @@ The 124 coefficients below are transcribed from Table 5 of the paper and
 were cross-verified against the independent b_k(293.15 K) column of its
 Table 6 (all 31 groups reproduce the tabulated 3 significant figures).
 Group counts (the ``counts`` dictionaries consumed here) are produced by
-the fragmenter in :mod:`aeroprops.vapour_pressure`; group indices k=0..30
+the fragmenter in :mod:`aerosolprops.vapour_pressure`; group indices k=0..30
 follow the paper's Table 5 exactly.
 
 Examples
@@ -82,7 +82,7 @@ __all__ = [
 ]
 
 #: log10 of the Pascal content of one atmosphere; converts the paper's
-#: fitted log10(p/atm) basis to the aeroprops log10(P/Pa) basis.
+#: fitted log10(p/atm) basis to the aerosolprops log10(P/Pa) basis.
 LOG10_ATM_TO_PA = log10(101325.0)
 
 #: Gas constant used by the paper (J/mol/K) in the Clausius-Clapeyron
@@ -173,7 +173,7 @@ SIMPOL1_SMARTS = {
 #:   * 2 - "acid-side carbons" of an amide is a global graph-cut property
 #:     (unbounded acyl-chain length) that no fixed-length SMARTS pattern
 #:     can express; computed with
-#:     :func:`aeroprops.topology.fragments_excluding_bond`.
+#:     :func:`aerosolprops.topology.fragments_excluding_bond`.
 #:   * 3/4 - aromatic / non-aromatic ring counts via SSSR ring
 #:     perception (the paper's footnote examples equal the cyclomatic
 #:     number: naphthalene 2, anthracene 3, biphenyl 2).
@@ -236,7 +236,7 @@ def simpol1_log10_vapour_pressure(counts, T=298.15):
     ----------
     counts : dict
         SIMPOL.1 group counts as produced by
-        :func:`aeroprops.vapour_pressure.simpol1_fragmentation`,
+        :func:`aerosolprops.vapour_pressure.simpol1_fragmentation`,
         mapping group index (int, 0-30) to count.
     T : float, optional
         Temperature [K]. The method was fitted on 273.15-393.15 K; see

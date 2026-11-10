@@ -1,7 +1,7 @@
 # EVAPORATION vapour pressure
 
-**Status:** implemented (`aeroprops.methods.evaporation` for the pure
-estimators and coefficient catalogue, `aeroprops.vapour_pressure.EVAPORATION`
+**Status:** implemented (`aerosolprops.methods.evaporation` for the pure
+estimators and coefficient catalogue, `aerosolprops.vapour_pressure.EVAPORATION`
 for the object-oriented wrapper and the graph fragmenter).
 
 ## Reference
@@ -27,7 +27,7 @@ Physics*, 11, 9431–9450.
 ## Quick start
 
 ```python
->>> from aeroprops.vapour_pressure import EVAPORATION
+>>> from aerosolprops.vapour_pressure import EVAPORATION
 >>> eva = EVAPORATION(smi="CC(C)(C(=O)O)C(C(=O)O)CC(=O)O")   # MBTCA
 >>> eva.counts
 {'2': 8, '3': 3.0, '9': 3}
@@ -45,7 +45,7 @@ and `vapour_pressure` returns Pa; the paper (and UManSysProp) work on an
 atm basis and the conversion constant log10(101325) is applied inside the
 pure estimator (`LOG10_ATM_TO_PA`). The pure layer accepts hand-built
 count dictionaries (`evaporation_parameters`, `evaporation_boiling_temperature`,
-`evaporation_log10_vapour_pressure` in `aeroprops.methods.evaporation`).
+`evaporation_log10_vapour_pressure` in `aerosolprops.methods.evaporation`).
 
 Failure modes return `None` (and set `success = False` on the wrapper):
 unparseable SMILES, elements outside C/H/N/O, aromatic input (paper mode),
@@ -82,7 +82,7 @@ Paper-level expectations (log10 units): for hydrocarbons and
 monofunctional compounds the fit MAD is 0.085 and the predicted MAD 0.087
 (paper §5.1); bifunctional compounds perform somewhat worse, especially
 dinitrates, diacids, keto acids and hydroxy nitrates; functionalised
-diacids motivated the empirical factor of Eq. 31. aeroprops reproduces
+diacids motivated the empirical factor of Eq. 31. aerosolprops reproduces
 every paper-stated count/value anchor we could test (D-values for
 neopentane, glyoxal, MBTCA, methyl nitrate/PAN, α-pinene, fenchyl alcohol,
 pinonaldehyde, the Table 5 MTBE entry, footnote f) and predicted boiling
@@ -92,18 +92,18 @@ experiment.
 ## Implementation notes
 
 - One graph walk over atom/bond neighbourhoods computes all count classes;
-  `aeroprops.fragmentation.PriorityFragmenter` is deliberately *not* reused
+  `aerosolprops.fragmentation.PriorityFragmenter` is deliberately *not* reused
   because EVAPORATION counting is overlapping/subset semantics (branching
   neighbour subsets, deduplicated pairs, per-role ring counting), not a
   mutually-exclusive SMARTS partition.
 - "In-chain oxygen" is the removal-connectivity test of paper Eq. 26,
-  computed with `aeroprops.topology.separate_without_atom`.
-- Structures are normalised on entry (`aeroprops.structure.mol_from_smiles`,
+  computed with `aerosolprops.topology.separate_without_atom`.
+- Structures are normalised on entry (`aerosolprops.structure.mol_from_smiles`,
   which applies RDKit's Normalizer) so that nitrate/PAN charge forms are
   detected; a neutral-written ON(O)O stays neutral and is still classified
   by neighbour topology.
 - Table 4 transcription ruling: b20 = 1817.69 (paper) where the
-  UManSysProp source tree carries 1817.60 — a typo there; aeroprops uses
+  UManSysProp source tree carries 1817.60 — a typo there; aerosolprops uses
   the paper value in both modes (within fit noise).
 
 ## Known limitations / open questions

@@ -11,8 +11,8 @@ isolation before the Nannoolal catalogue rides on top.
 
 import pytest
 
-from aeroprops.fragmentation import PriorityFragmenter
-from aeroprops.structure import mol_from_smiles
+from aerosolprops.fragmentation import PriorityFragmenter
+from aerosolprops.structure import mol_from_smiles
 
 
 def test_lower_priority_number_wins_contested_atom():

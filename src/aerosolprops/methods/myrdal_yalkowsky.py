@@ -53,7 +53,7 @@ method notes):
 
 The estimators here are pure functions of the descriptors; the SMILES to
 descriptor path (SP3/SP2/RING walk, hydrogen-bond group SMARTS, MW) lives
-in :func:`aeroprops.vapour_pressure.myrdal_yalkowsky_descriptors`.
+in :func:`aerosolprops.vapour_pressure.myrdal_yalkowsky_descriptors`.
 
 Examples
 --------
@@ -168,7 +168,7 @@ def myrdal_yalkowsky_tau(sp3, sp2, ring):
 
     SP3/SP2 are the numbers of nonring, nonterminal sp3 / sp2 atoms and
     RING the number of independent ring systems, as counted by
-    :func:`aeroprops.vapour_pressure.myrdal_yalkowsky_descriptors`.
+    :func:`aerosolprops.vapour_pressure.myrdal_yalkowsky_descriptors`.
 
     Parameters
     ----------
@@ -232,7 +232,7 @@ def myrdal_yalkowsky_hbn(n_hbond, n_primary_amine, mw):
         Number of hydrogen-bonding groups in the first root: alcohols
         (incl. phenols) + carboxylic acids (paper definition), plus
         hydroperoxides and peracids (Compernolle et al., 2010,
-        section 2.6 extension adopted by aeroprops).
+        section 2.6 extension adopted by aerosolprops).
     n_primary_amine : int
         Number of primary amines (amides excluded).
     mw : float
@@ -378,9 +378,9 @@ def myrdal_yalkowsky_log10_vapour_pressure(
     Tb : float
         Normal boiling point [K] (> 0); an input, not an estimate of
         this module (route it from
-        :class:`aeroprops.boiling_point.NannoolalBP`, ``thermo``'s
+        :class:`aerosolprops.boiling_point.NannoolalBP`, ``thermo``'s
         Joback method, or experiment through the
-        :class:`aeroprops.vapour_pressure.MyrdalYalkowsky` wrapper).
+        :class:`aerosolprops.vapour_pressure.MyrdalYalkowsky` wrapper).
     tau : float, optional
         Effective number of torsional bonds (>= 0,
         :func:`myrdal_yalkowsky_tau`).

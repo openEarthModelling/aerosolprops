@@ -21,13 +21,13 @@ Gate 5 (live UManSysProp behaviour comparison) lives in
 
 import pytest
 
-from aeroprops.boiling_point import (
+from aerosolprops.boiling_point import (
     NANNOOLAL_BP_SMARTS,
     NannoolalBP,
     _nannoolal_engine,
     nannoolal_fragmentation,
 )
-from aeroprops.methods.nannoolal_bp import (
+from aerosolprops.methods.nannoolal_bp import (
     GI_STATUS_NO_GI,
     GI_STATUS_OK,
     NANNOOLAL_BP_BASE,
@@ -37,7 +37,7 @@ from aeroprops.methods.nannoolal_bp import (
     NANNOOLAL_BP_INTERACTIONS,
     nannoolal_bp_gi,
 )
-from aeroprops.structure import mol_from_smiles
+from aerosolprops.structure import mol_from_smiles
 
 
 # --- Gate 1: independent transcription spot-check --------------------
@@ -306,7 +306,7 @@ def test_plain_molecules_get_gi_status_ok():
 
 
 def test_out_of_scope_molecules_fail_cleanly():
-    # Element gate: the paper covers Si/P but aeroprops does not
+    # Element gate: the paper covers Si/P but aerosolprops does not
     # parameterise those families (documented scope cut).
     nnp = NannoolalBP(smi="C[Si](C)(C)C")
     assert not nnp.success

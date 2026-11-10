@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
-"""Tests for aeroprops.structure (RDKit entry layer)."""
+"""Tests for aerosolprops.structure (RDKit entry layer)."""
 
 import pytest
 
-from aeroprops.structure import (
+from aerosolprops.structure import (
     canonical_smiles,
     element_counts,
     load_rdkit,
@@ -21,7 +21,7 @@ def test_load_rdkit_returns_modules():
 
 def test_nitro_valence_forms_agree():
     # The neutral valence form and the charge form must map to the same
-    # canonical molecule (the form aeroprops SMARTS catalogues target).
+    # canonical molecule (the form aerosolprops SMARTS catalogues target).
     assert canonical_smiles("CN(=O)=O") == canonical_smiles("C[N+](=O)[O-]")
 
 

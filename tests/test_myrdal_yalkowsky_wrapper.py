@@ -11,9 +11,9 @@ estimators returning ``None``.
 
 import pytest
 
-from aeroprops.methods.simpol1 import LOG10_ATM_TO_PA
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import MyrdalYalkowsky
+from aerosolprops.methods.simpol1 import LOG10_ATM_TO_PA
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import MyrdalYalkowsky
 
 # ---------------------------------------------------------------------------
 # End to end: paper Table 1 rows from SMILES through the wrapper
@@ -49,7 +49,7 @@ def test_experimental_tb_passthrough():
     assert my.tb_source == "experimental"
     assert my.status == "OK"
     d = my.descriptors
-    from aeroprops.methods.myrdal_yalkowsky import (
+    from aerosolprops.methods.myrdal_yalkowsky import (
         myrdal_yalkowsky_log10_vapour_pressure,
     )
 
@@ -66,14 +66,14 @@ def test_experimental_tb_passthrough():
 
 
 def test_nannoolal_route_default():
-    from aeroprops.boiling_point import NannoolalBP
+    from aerosolprops.boiling_point import NannoolalBP
 
     my = MyrdalYalkowsky(smi="CCCCCC")
     assert my.success, my.status
     assert my.tb_source == "nannoolal"
     nnp = NannoolalBP(smi="CCCCCC")
     assert my.tb == nnp.boiling_point()
-    # live-recorded drift locks (Nannoolal Part 1 through aeroprops)
+    # live-recorded drift locks (Nannoolal Part 1 through aerosolprops)
     assert round(my.tb, 2) == 350.03
     assert round(my.log10_vapour_pressure(298.15), 2) == 4.14
 

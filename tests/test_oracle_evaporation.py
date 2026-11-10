@@ -3,29 +3,29 @@
 
 Runs the *unmodified* UManSysProp ``evaporation`` implementation live as
 the behavioural oracle only (none of its SMARTS or data content is
-copied into aeroprops - the aeroprops fragmentation was written
+copied into aerosolprops - the aerosolprops fragmentation was written
 clean-room from the ACP 2011 paper text) and compares upstream-mode
 group counts and log10 vapour pressures with
-:func:`aeroprops.vapour_pressure.evaporation_fragmentation` and
-:func:`aeroprops.methods.evaporation.evaporation_log10_vapour_pressure`.
+:func:`aerosolprops.vapour_pressure.evaporation_fragmentation` and
+:func:`aerosolprops.methods.evaporation.evaporation_log10_vapour_pressure`.
 
 The divergence whitelist is empty: every probe molecule reproduces the
 live oracle's assembled counts exactly and its value (on the oracle's
 log10 atm basis) to better than 1e-12; the residual is one ulp of
 floating-point association order. Tests that need the UManSysProp tree
-are skipped when it is absent (``AEROPROPS_UMS_REPO``); the recorded
+are skipped when it is absent (``AEROSOLPROPS_UMS_REPO``); the recorded
 drift lock below runs regardless.
 """
 
 import pytest
 
 import ums_oracle
-from aeroprops.methods.evaporation import (
+from aerosolprops.methods.evaporation import (
     LOG10_ATM_TO_PA,
     evaporation_log10_vapour_pressure,
 )
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import (
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import (
     _evaporation_assemble_upstream,
     evaporation_fragmentation,
 )
@@ -57,7 +57,7 @@ def _live_assembled(ums, smi):
 #: 51 probe molecules covering every decoded counting rule, with the
 #: assembled upstream-mode counts recorded from the live oracle
 #: (2026-11-10, UManSysProp public master). Key "1" (carbon count,
-#: which the oracle reports but aeroprops drops) removed; zero counts
+#: which the oracle reports but aerosolprops drops) removed; zero counts
 #: omitted.
 CONTROLS = [
     ('1-2-dioxane', 'C1COOCC1', {'12': 1, '12CL': 1, '12lin': 1, '2': 6, '3': -1.0}),
@@ -126,7 +126,7 @@ CONTROLS = [
 
 def _assert_same_counts(recorded, produced, label):
     # key "1" is the plain carbon count the oracle reports but
-    # aeroprops drops from its counts dict
+    # aerosolprops drops from its counts dict
     for k in set(recorded) | set(produced):
         if k == "1":
             continue
@@ -157,7 +157,7 @@ def test_oracle_example_output_counts_and_log10p(ums):
     "name, smi, recorded", CONTROLS, ids=[row[0] for row in CONTROLS]
 )
 def test_control_drift_lock(name, smi, recorded):
-    """aeroprops must keep reproducing the recorded oracle counts even
+    """aerosolprops must keep reproducing the recorded oracle counts even
     without the UManSysProp tree (regression lock on every decoded
     counting rule)."""
     _assert_same_counts(recorded, _ours(smi), name)
@@ -169,7 +169,7 @@ def test_control_drift_lock(name, smi, recorded):
 )
 def test_control_matches_live_oracle(ums, name, smi, recorded):
     """Two-sided drift lock: the live oracle must still produce the
-    recorded counts (upstream change detection) and aeroprops must
+    recorded counts (upstream change detection) and aerosolprops must
     match the live oracle exactly."""
     live_counts = _live_assembled(ums, smi)
     _assert_same_counts(recorded, live_counts, (name, "oracle drifted"))

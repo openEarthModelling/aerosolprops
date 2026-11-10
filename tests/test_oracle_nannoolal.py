@@ -3,24 +3,24 @@
 
 Runs the *unmodified* UManSysProp ``boiling_points.nannoolal``
 implementation live as the behavioural oracle (UMS's data and SMARTS are
-never copied into aeroprops) over the 26 Example_output.txt SMILES plus
+never copied into aerosolprops) over the 26 Example_output.txt SMILES plus
 a control battery, and compares group counts and boiling temperatures
-with :class:`aeroprops.boiling_point.NannoolalBP`.
+with :class:`aerosolprops.boiling_point.NannoolalBP`.
 
 Every Example_output molecule is either bit-for-bit identical to UMS
 (EXACT, no extension groups involved) or carries an entry in
-``WL_26`` with the live-recorded UMS values, the aeroprops values and
+``WL_26`` with the live-recorded UMS values, the aerosolprops values and
 the paper-based reason for the divergence. UManSysProp deviations from
 the paper found this way (paper evidence in the reason strings):
 
 * the N(O)O fragment has no group in the paper set - UMS silently
   drops those atoms (no atom-balance check) and still returns a Tb;
-  aeroprops refuses ("unclaimed atom");
+  aerosolprops refuses ("unclaimed atom");
 * UMS applies the secondary-alcohol group 34 / fires the aromatic-5-ring
   correction 126 where the paper's OH-family and "non-aromatic ring"
   definitions say otherwise;
 * extension groups 301-303: UMS stuffs them into GI classes A/C/F and
-  computes interactions; aeroprops skips GI entirely (no parameters in
+  computes interactions; aerosolprops skips GI entirely (no parameters in
   the paper) - identical counts, different Tb;
 * several primary groups are missing from the UMS catalogue entirely
   (aromatic N 67 with pyridine as the paper example, bridgehead 18,
@@ -29,13 +29,13 @@ the paper found this way (paper evidence in the reason strings):
   perfluoro family 21, the methyl of acetonitrile).
 
 Skipped entirely when the UManSysProp source tree is not present
-(``AEROPROPS_UMS_REPO``, see :mod:`ums_oracle`).
+(``AEROSOLPROPS_UMS_REPO``, see :mod:`ums_oracle`).
 """
 
 import pytest
 
 import ums_oracle
-from aeroprops.boiling_point import NannoolalBP
+from aerosolprops.boiling_point import NannoolalBP
 
 pytestmark = pytest.mark.skipif(
     not ums_oracle.available(), reason="UManSysProp source tree not available"
@@ -81,28 +81,28 @@ def test_example_output_exact_bit_for_bit(ums):
 
 
 # --- the 26 Example_output.txt molecules: documented deviations --------
-# (name, SMILES, UMS counts, UMS Tb, aeroprops counts or None when the
-#  wrapper refuses, aeroprops Tb or None, reason)
+# (name, SMILES, UMS counts, UMS Tb, aerosolprops counts or None when the
+#  wrapper refuses, aerosolprops Tb or None, reason)
 REASON_NOON = (
     "the N(O)O fragment has no group in the paper's set; UMS silently"
     " drops those atoms and still returns a Tb (no atom-balance check),"
-    " aeroprops refuses with 'unclaimed atom'"
+    " aerosolprops refuses with 'unclaimed atom'"
 )
 REASON_OH = (
-    "OH family: aeroprops applies the <5-carbon reassignment to group"
+    "OH family: aerosolprops applies the <5-carbon reassignment to group"
     " 36 (paper Table 1 OH family; the short-chain gate precedes the"
     " neighbour-count classes) and falls back to 36 for gem-diol"
     " oxygens, UMS keeps 33/34 in both situations"
 )
 REASON_GI = (
-    "extension 301 present: aeroprops skips the group-interaction term"
+    "extension 301 present: aerosolprops skips the group-interaction term"
     " entirely (flagged no-GI; the paper has no GI parameters for"
     " extension groups), UMS stuffs 301 into GI class A and computes"
     " interactions - identical counts, different Tb"
 )
 
 WL_26 = [
-    # -- UMS drops the N(O)O atoms, aeroprops refuses ------------------
+    # -- UMS drops the N(O)O atoms, aerosolprops refuses ------------------
     (
         "terpene OON(O)O 1",
         "C(C(O)OON(O)O)C1C(C(C(O)C)C1)(C)C",
@@ -160,7 +160,7 @@ WL_26 = [
          301: 1},
         466.9448047440741, None, None, REASON_NOON,
     ),
-    # -- OH family (UMS 33/34 vs aeroprops 36) -------------------------
+    # -- OH family (UMS 33/34 vs aerosolprops 36) -------------------------
     (
         "alpha-hydroxy hydroperoxide",
         "CC(O)OO",
@@ -252,7 +252,7 @@ WL_26 = [
 def test_example_output_whitelist(ums, name, smi, ums_counts, ums_tb,
                                   ours_counts, ours_tb, reason):
     """Documented deviations: the live oracle must reproduce the
-    recorded UMS values (drift guard) and aeroprops must reproduce the
+    recorded UMS values (drift guard) and aerosolprops must reproduce the
     recorded paper-faithful side."""
     assert _ums_counts(ums, smi) == ums_counts, (name, "UMS drifted")
     assert _ums_tb(ums, smi) == ums_tb, (name, "UMS drifted")
@@ -306,7 +306,7 @@ def test_control_battery_exact(ums):
 
 
 #: UMS catalogue gaps / deviations on ordinary molecules (live-recorded
-#: 2026-11-10). aeroprops follows the paper in every case; the paper
+#: 2026-11-10). aerosolprops follows the paper in every case; the paper
 #: evidence is named per entry.
 WL_CONTROL = [
     # (name, SMILES, UMS counts, UMS Tb, ours counts, ours Tb, reason)
@@ -356,7 +356,7 @@ WL_CONTROL = [
         {15: 4, 97: 1}, 334.29142683306327,
         "UMS drops the pyrrole NH entirely and fires 126 on the "
         "aromatic five-ring (paper: 126 is a five-membered NON-aromatic "
-        "ring); aeroprops assigns the cyclic secondary amine 97",
+        "ring); aerosolprops assigns the cyclic secondary amine 97",
     ),
     (
         "acetonitrile",
@@ -464,7 +464,7 @@ def test_control_whitelist(ums, name, smi, ums_counts, ums_tb, ours_counts,
 def test_control_ulp_class(ums):
     """Identical counts with Tb differing only in the last ulp (float
     summation order: UMS sums primary, secondary and GI contributions
-    in three separate passes, aeroprops accumulates in group-ID order -
+    in three separate passes, aerosolprops accumulates in group-ID order -
     both are deterministic, they just round differently)."""
     for smi in ("Nc1ccccc1", "N#Cc1ccccc1", "CC(=O)c1ccccc1"):
         nnp = _ours(smi)

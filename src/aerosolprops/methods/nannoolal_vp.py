@@ -62,7 +62,7 @@ the paper text; the method notes lose any conflict):
   systems (three aromatic neighbours, but only two aromatic bonds).
 - ID 217 (Si-(F,Cl,Br,I) correction) and the Si groups 70/71/93/215/216
   have values but lie outside the C/N/O/S/F/Cl/Br/I element scope the
-  aeroprops fragmenter parameterises; the values are transcribed for
+  aerosolprops fragmenter parameterises; the values are transcribed for
   completeness.
 - Paper Eq. (9), a low-pressure correction for mono-functional alcohols,
   is NOT implemented: as printed it is a single temperature-dependent
@@ -75,7 +75,7 @@ the paper text; the method notes lose any conflict):
   must refuse, never zero. A pair absent from Table 6 contributes zero
   (the Part 1 convention for unregressed pairs). Table 6 footnotes flag
   row 187 (Epox-epox) as questionable; the value is recorded verbatim.
-- The three SOA extension groups (IDs 301-303, aeroprops slot numbering)
+- The three SOA extension groups (IDs 301-303, aerosolprops slot numbering)
   carry dB contributions from Compernolle, Ceulemans & Muller, Atmos.
   Chem. Phys. 10 (2010) 6271-6282, Table 3 (Part 3 dB column); no group
   interactions can be derived for them, so molecules containing them take
@@ -262,7 +262,7 @@ NANNOOLAL_VP_GROUPS = {
     89: ("C=C-C=C (conjugated, chain)", 0.2137165, 7),
     95: ("C=C-C=C (conjugated triple)", 0.3922006, 8),
     # --- Si / Ge / Sn / P / As / Se / B / Al (values only, out of the
-    #     element scope of the aeroprops fragmenter) ---
+    #     element scope of the aerosolprops fragmenter) ---
     70: ("Si", 0.0028992, 80),
     216: ("Si(C,H)0", -0.0811543, 76),
     215: ("Si(C,H)1", -0.0665670, 77),
@@ -445,7 +445,7 @@ NANNOOLAL_VP_INTERACTION_IDS = {
     ("C", "M"): 218,  # printed "Do not estimate" (no parameter)
 }
 
-#: SOA extension groups (aeroprops slot IDs 301-303). The dB
+#: SOA extension groups (aerosolprops slot IDs 301-303). The dB
 #: contributions themselves are merged into :data:`NANNOOLAL_VP_GROUPS`;
 #: membership in this table marks a group as having no interaction
 #: parameters (the no-GI branch of the estimator).
@@ -476,7 +476,7 @@ def nannoolal_vp_group_sum(counts):
     ----------
     counts : dict
         Group counts keyed by group ID as produced by
-        :func:`aeroprops.vapour_pressure.nannoolal_vp_fragmentation`.
+        :func:`aerosolprops.vapour_pressure.nannoolal_vp_fragmentation`.
 
     Returns
     -------
@@ -648,7 +648,7 @@ def nannoolal_vp_dB(counts, n):
     ----------
     counts : dict
         Group counts keyed by group ID as produced by
-        :func:`aeroprops.vapour_pressure.nannoolal_vp_fragmentation`.
+        :func:`aerosolprops.vapour_pressure.nannoolal_vp_fragmentation`.
     n : int
         Number of non-hydrogen atoms in the molecule.
 

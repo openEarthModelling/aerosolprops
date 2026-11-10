@@ -3,22 +3,22 @@
 
 Runs the *unmodified* UManSysProp ``simpol`` implementation live (as the
 behavioural oracle only - none of its data or SMARTS content is copied
-into aeroprops) through the RDKit-based ``openbabel.pybel`` /
+into aerosolprops) through the RDKit-based ``openbabel.pybel`` /
 ``pkg_resources`` shim from the UManSysProp RDKit tutorial, and compares
 group counts and log10 vapour pressures with
-:func:`aeroprops.vapour_pressure.simpol1_fragmentation`.
+:func:`aerosolprops.vapour_pressure.simpol1_fragmentation`.
 
 Skipped entirely when the UManSysProp source tree is not present (set
-``AEROPROPS_UMS_REPO`` to point at a checkout; the default is the local
+``AEROSOLPROPS_UMS_REPO`` to point at a checkout; the default is the local
 path used during development).
 """
 
 import pytest
 
 import ums_oracle
-from aeroprops.methods.simpol1 import LOG10_ATM_TO_PA, simpol1_bk
-from aeroprops.structure import mol_from_smiles
-from aeroprops.vapour_pressure import simpol1_fragmentation
+from aerosolprops.methods.simpol1 import LOG10_ATM_TO_PA, simpol1_bk
+from aerosolprops.structure import mol_from_smiles
+from aerosolprops.vapour_pressure import simpol1_fragmentation
 
 USP_REPO = ums_oracle.USP_REPO
 
@@ -42,7 +42,7 @@ def _ums_log10p_atm(ums_modules, smi, T=298.15):
 
 
 def _ours_log10p_atm(counts, T=298.15):
-    # aeroprops returns log10 Pa; subtract the conversion constant to
+    # aerosolprops returns log10 Pa; subtract the conversion constant to
     # compare on the paper's (and UMS's) log10 atm basis.
     total = simpol1_bk(0, T)
     for k, nu in counts.items():
@@ -57,7 +57,7 @@ def _example_output_smiles():
 
 #: Known UManSysProp deviations from the paper, whitelisted per the
 #: method notes section 6 / open questions. Each entry records the UMS
-#: group counts and the aeroprops counts (source of the aeroprops
+#: group counts and the aerosolprops counts (source of the aerosolprops
 #: values: live run on 2026-11-10 against UManSysProp public master).
 WHITELIST = [
     # name, SMILES, {k: (ums, ours)}, justification
@@ -108,7 +108,7 @@ WHITELIST = [
         "O=C1CCCCN1",
         {2: (4, 5)},
         "OQ-1: lactam acid-side carbons undefined in the paper; "
-        "aeroprops counts the whole acyl-side component (5 ring "
+        "aerosolprops counts the whole acyl-side component (5 ring "
         "carbons), UMS's fixed-length pattern captures 4",
     ),
     (
@@ -228,7 +228,7 @@ def test_oracle_amide_probe_set_counts_match(ums):
 )
 def test_oracle_whitelisted_deviations(ums, name, smi, deviations, justification):
     """Documented UMS deviations: the live UMS oracle must reproduce the
-    recorded UMS values (guards against oracle drift), and aeroprops
+    recorded UMS values (guards against oracle drift), and aerosolprops
     must reproduce the paper-semantics values."""
     raw = ums.groups.simpol(_readstring_smi(smi))
     ums_counts = {int(k): v for k, v in raw.items() if v}
