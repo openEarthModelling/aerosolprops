@@ -8,6 +8,30 @@ and the project adheres to [semantic versioning](https://semver.org/).
 
 ### Added
 
+- Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
+  2004; SOA extension groups from Compernolle et al., ACP 10, 6271,
+  2010): the second estimator method.
+  - `aeroprops.methods.nannoolal_bp` (pure layer): the 132-group
+    coefficient catalogue (113 main + 16 corrections + 3 extensions;
+    the two Table 1 transcription rulings are documented in tests),
+    the 76 group-interaction parameters of Table 5 with the
+    counting-form GI estimator `nannoolal_bp_gi` (parameter-less pairs
+    B-G and R-R fail; extension groups switch to a flagged no-GI
+    branch), and `nannoolal_bp_boiling_point`.
+  - `aeroprops.fragmentation`: reusable priority-number fragmenter
+    (paper Table 1 footnote a semantics — lower priority number wins,
+    group-level claiming, multi-atom all-or-nothing claims, atom
+    balance check) for any catalogue of (SMARTS, priority, claim).
+  - `aeroprops.boiling_point`: clean-room SMARTS catalogue plus graph
+    helpers for the corrections that SMARTS cannot express
+    (conjugation, o/m/p ring arc distances, ring sizes, steric bond
+    crowding), and the Joback-style `NannoolalBP` wrapper with
+    one-time fragmentation and None-on-failure estimators.
+  - Verification: paper Tables 17a-17d end-to-end, coefficient
+    triple-guard, 5 literature boiling points, 50+-molecule atom
+    balance, priority adjudication and refusal paths, and a live
+    UManSysProp behavioural oracle (9 of 26 Example_output molecules
+    bit-for-bit; all divergences whitelisted with paper-based reasons).
 - SIMPOL.1 vapour pressure (Pankow & Asher, ACP 8, 2773, 2008): the
   first estimator method.
   - `aeroprops.methods.simpol1` (pure layer): the 124 coefficients of

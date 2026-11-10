@@ -16,7 +16,8 @@ Method coverage for v0.1:
   planned
 - Nannoolal Part 1 normal boiling point (Nannoolal et al., FPE 226, 45,
   2004), including the SOA extension groups of Compernolle et al. (ACP 10,
-  6271, 2010) — planned
+  6271, 2010) — implemented (see
+  :class:`aeroprops.boiling_point.NannoolalBP`)
 - Nannoolal Part 3 vapour pressure (Nannoolal et al., FPE 269, 117, 2008) —
   planned
 - Myrdal-Yalkowsky vapour pressure (Myrdal & Yalkowsky, IECR 36, 2494,
