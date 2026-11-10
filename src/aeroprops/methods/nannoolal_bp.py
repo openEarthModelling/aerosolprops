@@ -81,6 +81,10 @@ __all__ = [
     "NANNOOLAL_BP_INTERACTIONS",
     "NANNOOLAL_BP_INTERACTION_IDS",
     "NANNOOLAL_BP_EXTENSIONS",
+    "nannoolal_bp_group_sum",
+    "nannoolal_bp_interaction_counts",
+    "nannoolal_bp_gi",
+    "nannoolal_bp_boiling_point",
 ]
 
 #: Constants of the Part 1 main equation (paper Eq. (1)),
@@ -463,5 +467,77 @@ NANNOOLAL_BP_EXTENSIONS = {
     ),
 }
 
+
+def nannoolal_bp_group_sum(counts):
+    """Sum of the first-order and second-order group contributions [K].
+
+    Parameters
+    ----------
+    counts : dict
+        Group counts keyed by group ID as produced by
+        :func:`aeroprops.boiling_point.nannoolal_fragmentation`.
+
+    Returns
+    -------
+    total : float or None
+        ``sum(N_i * C_i)`` over all groups in `counts`, or ``None`` if a
+        key is not a valid group ID.
+
+    Examples
+    --------
+    Paper Table 17a (3,3,4,4-tetramethylhexane): the printed group sum is
+    2153.745 K (6 CH3, 2 chain CH2, 2 quaternary chain C, 1 steric
+    correction 133):
+
+    >>> round(nannoolal_bp_group_sum({1: 6, 4: 2, 6: 2, 133: 1}), 3)
+    2153.745
+    >>> nannoolal_bp_group_sum({999: 1}) is None
+    True
+    """
+    total = 0.0
+    try:
+        for gid, n in counts.items():
+            total += n * NANNOOLAL_BP_GROUPS[gid][1]
+    except (KeyError, TypeError):
+        return None
+    return total
+
+
+def nannoolal_bp_interaction_counts(counts):
+    """Count the non-additive interaction groups per Table 9 class.
+
+    Parameters
+    ----------
+    counts : dict
+        Group counts keyed by group ID.
+
+    Returns
+    -------
+    class_counts : dict or None
+        Mapping of class letter to the number of interaction groups of
+        that class, or ``None`` on invalid input.
+
+    Examples
+    --------
+    Di-isopropanolamine (paper Table 17b): two alcohol OH (class A) and
+    one secondary amine (class N), m = 3:
+
+    >>> nannoolal_bp_interaction_counts({1: 2, 7: 4, 34: 2, 42: 1}) == \
+{'A': 2, 'N': 1}
+    True
+    """
+    group_to_class = {}
+    for letter, (_desc, gids) in NANNOOLAL_BP_INTERACTION_CLASSES.items():
+        for gid in gids:
+            group_to_class[gid] = letter
+    class_counts = {}
+    try:
+        for gid, n in counts.items():
+            letter = group_to_class.get(gid)
+            if letter is not None and n:
+                class_counts[letter] = class_counts.get(letter, 0) + n
+    except (AttributeError, TypeError):
+        return None
+    return class_counts
 
 
