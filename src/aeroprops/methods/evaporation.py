@@ -64,7 +64,7 @@ References
    doi:10.5194/acp-11-9431-2011
 """
 
-from math import log10, sqrt
+from math import isfinite, log10, sqrt
 
 __all__ = [
     "LOG10_ATM_TO_PA",
@@ -189,5 +189,227 @@ def evaporation_gk(k, T=298.15):
         return a_k + b_k / T ** EVAPORATION_KAPPA
     except (KeyError, TypeError, ZeroDivisionError):
         return None
+
+
+def _typed_maps(b20):
+    """(a, b) coefficient maps including the typed k12 duplicate rows."""
+    a = {k: rec[0] for k, rec in EVAPORATION_COEFFICIENTS.items()}
+    b = {k: rec[1] for k, rec in EVAPORATION_COEFFICIENTS.items()}
+    for split in ("12lin", "12CL", "12HB"):
+        a[split] = a["12"]
+        b[split] = b["12"]
+    b["20"] = b20
+    return a, b
+
+
+#: Coefficient maps with k12 duplicated into its typed keys; the B map
+#: carries the paper's b20 = 1817.69.
+_A_PAPER, _B_PAPER = _typed_maps(EVAPORATION_COEFFICIENTS["20"][1])
+
+#: The upstream-compatibility B map reproduces the b20 = 1817.60 typo
+#: of the UManSysProp data file (A is unaffected by the typo).
+_A_UPSTREAM, _B_UPSTREAM = _typed_maps(EVAPORATION_B20_UPSTREAM_TYPO)
+
+#: Every accepted key of a counts dictionary ("1" is forced to 1 and
+#: never read from the input).
+_COUNT_KEYS = tuple(
+    [str(k) for k in range(1, 21)] + ["12lin", "12CL", "12HB"]
+)
+
+
+def _validated_counts(counts):
+    """Normalise a counts mapping to float values, or ``None``.
+
+    Accepts the descriptor keys "1".."20" plus the typed ring splits;
+    unknown keys (typos) and non-numeric or non-finite values reject
+    the whole input, mirroring the unknown-group discipline of
+    :func:`aeroprops.methods.simpol1.simpol1_log10_vapour_pressure`.
+    """
+    try:
+        out = {}
+        for key, value in counts.items():
+            if key not in _COUNT_KEYS:
+                return None
+            out[key] = float(value)
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if any(not isfinite(v) for v in out.values()):
+        return None
+    out["1"] = 1.0
+    for key in _COUNT_KEYS:
+        out.setdefault(key, 0.0)
+    return out
+
+
+def evaporation_diacid_factor(counts):
+    """Diacid correction factor of paper Eq. 31.
+
+    Functionalised diacids - more than one carboxylic acid (c9 > 1)
+    *and* more than two CL/HB groups in total - have their CL/HB terms
+    scaled by ``N_eff / (N_CL + N_HB)`` with ``N_eff = 2.6`` (paper
+    Sect. 4.3.2); every other molecule gets the neutral factor 1.0.
+
+    Parameters
+    ----------
+    counts : dict
+        Descriptor counts (see
+        :func:`evaporation_log10_vapour_pressure`). Only the
+        functional-group keys "5"-"11" are read.
+
+    Returns
+    -------
+    factor : float or None
+        ``None`` on invalid input.
+
+    Examples
+    --------
+    >>> round(evaporation_diacid_factor({"8": 1, "9": 3}), 4)  # citric
+    0.65
+    >>> round(evaporation_diacid_factor({"9": 3}), 6)  # MBTCA: 2.6/3
+    0.866667
+    >>> evaporation_diacid_factor({"9": 2})  # plain diacid: neutral
+    1.0
+    >>> evaporation_diacid_factor({"9": 1, "8": 2})  # monoacid: neutral
+    1.0
+    """
+    c = _validated_counts(counts)
+    if c is None:
+        return None
+    n_cl = c["5"] + c["6"] + c["7"]
+    n_hb = c["8"] + c["9"] + c["10"] + c["11"]
+    if c["9"] > 1 and n_cl + n_hb > 2:
+        return EVAPORATION_N_EFF / (n_cl + n_hb)
+    return 1.0
+
+
+def _aggregate(c, coeffs, keys):
+    """Sum(c[k] * coeffs[k]) over `keys` in order (float-exact role of
+    the upstream ``aggregate_matches`` helper, same left-to-right sum).
+    """
+    return sum(c[k] * coeffs[k] for k in keys)
+
+
+def evaporation_log10_vapour_pressure(counts, T=298.15,
+                                      upstream_compat=False):
+    """Estimate log10 of the sub-cooled liquid vapour pressure [log10 Pa].
+
+    Assembles paper Eq. 13 from the 20 descriptor counts plus the typed
+    ring counts (``upstream_compat=False``) or reproduces the
+    UManSysProp assembly bit-for-bit (``upstream_compat=True``); see
+    the module docstring for the exact differences.
+
+    Parameters
+    ----------
+    counts : dict
+        Descriptor counts keyed "1".."20" (c1 is forced to 1) plus
+        "12lin"/"12CL"/"12HB", as produced by
+        :func:`aeroprops.vapour_pressure.evaporation_fragmentation`.
+        Counts may be fractional (the topology descriptor c3 carries a
+        fractional ring number).
+    T : float, optional
+        Temperature [K].
+    upstream_compat : bool, optional
+        Select the upstream assembly arithmetic (see module docstring).
+
+    Returns
+    -------
+    log10P : float or None
+        Base-10 logarithm of the vapour pressure [Pa], or ``None`` on
+        invalid input (unknown descriptor key, non-numeric count,
+        non-positive temperature).
+
+    Examples
+    --------
+    Neopentane, paper counting (5 carbons, t = 2; the branching
+    descriptor alone raises log10 p0 by 2 x 0.199 over n-pentane):
+
+    >>> lp = evaporation_log10_vapour_pressure({"2": 5, "3": 2.0})
+    >>> round(lp, 4)
+    5.2184
+    >>> round(lp - LOG10_ATM_TO_PA, 4)   # paper basis, log10 atm
+    0.2127
+
+    MBTCA (3-methyl-1,2,3-butanetricarboxylic acid), paper counting
+    (t = 3, N_HB = 3, diacid factor 2.6/3):
+
+    >>> lp = evaporation_log10_vapour_pressure({"2": 8, "3": 3.0, "9": 3})
+    >>> round(lp - LOG10_ATM_TO_PA, 4)
+    -11.5184
+
+    The same molecule under upstream counting (t = 7 through the
+    subset-matching branching patterns) and upstream arithmetic; the
+    value equals the live UManSysProp oracle bit-for-bit (paper Table 9
+    lists -10.86, between the two c3 conventions):
+
+    >>> lp = evaporation_log10_vapour_pressure(
+    ...     {"2": 8, "3": 7.0, "9": 3}, upstream_compat=True)
+    >>> round(lp, 4)
+    -5.7158
+    >>> round(lp - LOG10_ATM_TO_PA, 4)
+    -10.7215
+
+    Invalid input returns ``None`` rather than raising:
+
+    >>> evaporation_log10_vapour_pressure({"2": 1}, T=0.0) is None
+    True
+    >>> evaporation_log10_vapour_pressure({"foo": 1}) is None
+    True
+    """
+    try:
+        temperature = float(T)
+    except (TypeError, ValueError):
+        return None
+    if not temperature > 0.0:
+        return None
+    c = _validated_counts(counts)
+    if c is None:
+        return None
+
+    n_cl = c["5"] + c["6"] + c["7"]
+    n_hb = c["8"] + c["9"] + c["10"] + c["11"]
+    if not upstream_compat:
+        # Paper Eqs. 27-31 in their continuous form: sqrt(1) = 1, and
+        # the B parameter takes k12 typed (12lin additive, 12CL/12HB
+        # diacid-scaled, per the Table 4 typing of the group it
+        # modifies).
+        factor = evaporation_diacid_factor(c)
+        a_lin = _aggregate(c, _A_PAPER, _LIN_KEYS)
+        a_cl = _aggregate(c, _A_PAPER, _CL_KEYS) / sqrt(n_cl) \
+            if n_cl else 0.0
+        a_hb = _aggregate(c, _A_PAPER, _HB_KEYS) / sqrt(n_hb) \
+            if n_hb else 0.0
+        A = a_lin + (a_cl + a_hb) * factor
+        b_cl_hb = _aggregate(c, _B_PAPER, tuple(
+            str(k) for k in range(5, 21))) \
+            + _B_PAPER["12"] * (c["12CL"] + c["12HB"])
+        B = _aggregate(c, _B_PAPER, ("1", "2", "3", "4", "12lin")) \
+            + b_cl_hb * factor
+    elif n_cl > 1 or n_hb > 1:
+        # Upstream sqrt branch: identical trigger, grouping and
+        # summation order to the UManSysProp source (verified
+        # bit-for-bit against the live oracle); the B parameter scales
+        # the *total* k12 count and uses the b20 typo.
+        factor = evaporation_diacid_factor(c)
+        a_lin = _aggregate(c, _A_UPSTREAM, _LIN_KEYS)
+        try:
+            a_cl = _aggregate(c, _A_UPSTREAM, _CL_KEYS) / sqrt(n_cl)
+        except ZeroDivisionError:
+            a_cl = 0.0
+        try:
+            a_hb = _aggregate(c, _A_UPSTREAM, _HB_KEYS) / sqrt(n_hb)
+        except ZeroDivisionError:
+            a_hb = 0.0
+        A = a_lin + (a_cl + a_hb) * factor
+        B = _aggregate(c, _B_UPSTREAM, ("1", "2", "3", "4")) + (
+            _aggregate(c, _B_UPSTREAM, tuple(str(k) for k in range(5, 21)))
+            * factor
+        )
+    else:
+        keys = tuple(str(k) for k in range(1, 21))
+        A = _aggregate(c, _A_UPSTREAM, keys)
+        B = _aggregate(c, _B_UPSTREAM, keys)
+    return A + B / temperature ** EVAPORATION_KAPPA + LOG10_ATM_TO_PA
+
+
 
 
